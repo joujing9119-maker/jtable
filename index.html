@@ -121,13 +121,19 @@
       flex: 1 1 0; min-width: 0; max-width: 160px; height: 36px;
       display: flex; align-items: center; justify-content: center;
       font-size: 13px; font-weight: 700; cursor: pointer; border: none;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       padding: 0 10px;
       color: var(--tab-inactive-text); background: var(--tab-inactive-bg);
       border-radius: 8px 8px 0 0;
       box-shadow: inset 0 -2px 4px rgba(0,0,0,0.08);
       transition: background 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
       transform: translateY(2px);
+    }
+    /* タブ名の省略表示（…）は、ボタン自体ではなくこのラベル部分だけにoverflow:hiddenを掛ける。
+       ボタン自体をoverflow:hiddenにすると、はみ出して飾るタブバッジ（.tab-data-badge）まで
+       欠けて見えてしまうため、わざと分けている。 */
+    .tab-btn .tab-label {
+      min-width: 0; max-width: 100%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .tab-btn:active { filter: brightness(0.92); }
     .tab-btn.active {
@@ -143,12 +149,12 @@
     /* 「入力あり」件数バッジ（タブ右上）。既存の＋ボタン等で使っている色（#20a39e系）を流用し、
        タブ選択中を示す青系のアクセント（--tab-active-border）とは別の色にして、見分けやすくしている。 */
     .tab-data-badge {
-      position: absolute; top: 2px; right: 2px; z-index: 4;
-      min-width: 14px; height: 14px; padding: 0 3px;
+      position: absolute; top: -6px; right: -4px; z-index: 4;
+      min-width: 16px; height: 16px; padding: 0 4px;
       display: none; align-items: center; justify-content: center;
-      font-size: 9px; font-weight: 700; line-height: 1; color: #fff;
-      background: #20a39e; border-radius: 8px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      font-size: 10px; font-weight: 700; line-height: 1; color: #fff;
+      background: #20a39e; border-radius: 9px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
       pointer-events: none;
     }
     .tab-data-badge.show { display: flex; }
@@ -498,15 +504,15 @@
     <div class="header">
       <div class="header-top">
         <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.34</div>
+        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.35</div>
         <div class="tab-bar" id="tabBar">
-          <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')">内部①<span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
-          <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')">内部②<span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
-          <button class="tab-btn"        data-tab="tategusonshoo1" onclick="switchTab('tategusonshoo1')">建具①<span class="tab-data-badge" id="badge_tategusonshoo1"></span></button>
-          <button class="tab-btn"        data-tab="tategusonshoo2" onclick="switchTab('tategusonshoo2')">建具②<span class="tab-data-badge" id="badge_tategusonshoo2"></span></button>
-          <button class="tab-btn"        data-tab="keishasoktei1"  onclick="switchTab('keishasoktei1')">傾斜①<span class="tab-data-badge" id="badge_keishasoktei1"></span></button>
-          <button class="tab-btn"        data-tab="keishasoktei2"  onclick="switchTab('keishasoktei2')">傾斜②<span class="tab-data-badge" id="badge_keishasoktei2"></span></button>
-          <button class="tab-btn"        data-tab="gaibusonsho"    onclick="switchTab('gaibusonsho')">外部<span class="tab-data-badge" id="badge_gaibusonsho"></span></button>
+          <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
+          <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
+          <button class="tab-btn"        data-tab="tategusonshoo1" onclick="switchTab('tategusonshoo1')"><span class="tab-label">建具①</span><span class="tab-data-badge" id="badge_tategusonshoo1"></span></button>
+          <button class="tab-btn"        data-tab="tategusonshoo2" onclick="switchTab('tategusonshoo2')"><span class="tab-label">建具②</span><span class="tab-data-badge" id="badge_tategusonshoo2"></span></button>
+          <button class="tab-btn"        data-tab="keishasoktei1"  onclick="switchTab('keishasoktei1')"><span class="tab-label">傾斜①</span><span class="tab-data-badge" id="badge_keishasoktei1"></span></button>
+          <button class="tab-btn"        data-tab="keishasoktei2"  onclick="switchTab('keishasoktei2')"><span class="tab-label">傾斜②</span><span class="tab-data-badge" id="badge_keishasoktei2"></span></button>
+          <button class="tab-btn"        data-tab="gaibusonsho"    onclick="switchTab('gaibusonsho')"><span class="tab-label">外部</span><span class="tab-data-badge" id="badge_gaibusonsho"></span></button>
         </div>
         <div class="header-controls">
           <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()">☀ 昼</button>
@@ -603,7 +609,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.34";
+      const CACHE_NAME = "jtable-v0.35";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
