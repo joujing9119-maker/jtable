@@ -143,12 +143,12 @@
     /* 「入力あり」件数バッジ（タブ右上）。既存の＋ボタン等で使っている色（#20a39e系）を流用し、
        タブ選択中を示す青系のアクセント（--tab-active-border）とは別の色にして、見分けやすくしている。 */
     .tab-data-badge {
-      position: absolute; top: -6px; right: -2px; z-index: 4;
-      min-width: 16px; height: 16px; padding: 0 4px;
+      position: absolute; top: 2px; right: 2px; z-index: 4;
+      min-width: 14px; height: 14px; padding: 0 3px;
       display: none; align-items: center; justify-content: center;
-      font-size: 10px; font-weight: 700; line-height: 1; color: #fff;
-      background: #20a39e; border-radius: 9px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      font-size: 9px; font-weight: 700; line-height: 1; color: #fff;
+      background: #20a39e; border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
       pointer-events: none;
     }
     .tab-data-badge.show { display: flex; }
@@ -498,7 +498,7 @@
     <div class="header">
       <div class="header-top">
         <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.33</div>
+        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.34</div>
         <div class="tab-bar" id="tabBar">
           <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')">内部①<span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
           <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')">内部②<span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -603,7 +603,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.33";
+      const CACHE_NAME = "jtable-v0.34";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
