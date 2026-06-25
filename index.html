@@ -172,15 +172,20 @@
       font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
       box-shadow: 0 4px 15px rgba(0,180,216,0.3);
     }
-    /* Jスタンプへのワンタップ切り替えボタン。Jスタンプ側にも同じ仕組みでJtableへ戻るボタンを置いている。
-       リンク先URLが変わった場合（リポジトリ名変更など）は、このhrefだけ書き換えればよい。 */
-    .app-switch-btn {
+    /* Jスタンプへのワンタップ切り替えボタン（画面左下に固定表示）。Jスタンプ側にも同じ仕組みで
+       Jtableへ戻るボタンを置いている。リンク先URLが変わった場合（リポジトリ名変更など）は、
+       このhrefだけ書き換えればよい。
+       z-indexは選択パネル(500)・パネル背景(499)より低くしてあるので、パネルを開いた時は
+       自然にパネル側が手前に表示され、ボタンが操作の邪魔にならない。 */
+    .app-switch-fab {
+      position: fixed; left: 16px; bottom: 16px; z-index: 50;
+      width: 52px; height: 52px; border-radius: 50%;
       background: linear-gradient(135deg, #8a63f2 0%, #5b3df0 100%);
-      color: #fff; border: none; padding: 7px 12px; border-radius: 8px;
-      font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
-      text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
-      box-shadow: 0 4px 15px rgba(91,61,240,0.3);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 24px; text-decoration: none;
+      box-shadow: 0 4px 15px rgba(91,61,240,0.4);
     }
+    .app-switch-fab:active { transform: scale(0.92); }
 
     /* ── メインコンテンツ ── */
     .main-content { flex: 1; display: flex; gap: 8px; min-height: 0; }
@@ -513,7 +518,7 @@
     <div class="header">
       <div class="header-top">
         <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.36</div>
+        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.37</div>
         <div class="tab-bar" id="tabBar">
           <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
           <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -524,7 +529,6 @@
           <button class="tab-btn"        data-tab="gaibusonsho"    onclick="switchTab('gaibusonsho')"><span class="tab-label">外部</span><span class="tab-data-badge" id="badge_gaibusonsho"></span></button>
         </div>
         <div class="header-controls">
-          <a class="app-switch-btn" href="https://joujing9119-maker.github.io/jstamp/">📷 Jスタンプ</a>
           <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()">☀ 昼</button>
           <button class="export-btn" onclick="exportToExcel()">Excel</button>
         </div>
@@ -611,6 +615,8 @@
 
   <div class="toast" id="toast"></div>
 
+  <a class="app-switch-fab" href="https://joujing9119-maker.github.io/jstamp/" title="Jスタンプに切り替え">📷</a>
+
   <script>
     // ── Service Worker (Blob URL方式・Jstampと同じ仕組み) ──────────────────
     // ホーム画面追加時にオフラインでも起動・動作できるようにするためのキャッシュ登録。
@@ -619,7 +625,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.36";
+      const CACHE_NAME = "jtable-v0.37";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
