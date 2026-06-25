@@ -486,7 +486,7 @@
     <div class="header">
       <div class="header-top">
         <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.31</div>
+        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.32</div>
         <div class="tab-bar" id="tabBar">
           <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')">内部①</button>
           <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')">内部②</button>
@@ -591,7 +591,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.31";
+      const CACHE_NAME = "jtable-v0.32";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -744,12 +744,20 @@ self.addEventListener('fetch', function(e) {
       tategusonshoo1: {
         omit: ['shiage'],
         labels: { kakubu: '各部仕上げ材' },
-        autoFill: { target: 'sonsho', value: '建具不良', watchFields: ['meisho', 'kakubu', 'jokyo', 'jokyoNum1', 'jokyoNum2', 'kasho', 'note'] },
+        jokyo: {
+          options: ['上隙間','中隙間','下隙間','開閉が固い','開閉不能'],
+          nums: [ { key: 'jokyoNum1', label: '', exportLabel: 'mm', unit: 'mm' } ],
+        },
+        autoFill: { target: 'sonsho', value: '建具不良', watchFields: ['meisho', 'kakubu', 'jokyo', 'jokyoNum1', 'kasho', 'note'] },
       },
       tategusonshoo2: {
         omit: ['shiage'],
         labels: { kakubu: '各部仕上げ材' },
-        autoFill: { target: 'sonsho', value: '建具不良', watchFields: ['meisho', 'kakubu', 'jokyo', 'jokyoNum1', 'jokyoNum2', 'kasho', 'note'] },
+        jokyo: {
+          options: ['上隙間','中隙間','下隙間','開閉が固い','開閉不能'],
+          nums: [ { key: 'jokyoNum1', label: '', exportLabel: 'mm', unit: 'mm' } ],
+        },
+        autoFill: { target: 'sonsho', value: '建具不良', watchFields: ['meisho', 'kakubu', 'jokyo', 'jokyoNum1', 'kasho', 'note'] },
       },
       keishasoktei1: {
         omit: ['shiage'],
@@ -2398,7 +2406,7 @@ self.addEventListener('fetch', function(e) {
     <div class="header">
       <div class="header-top">
         <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.31</div>
+        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.32</div>
         <div class="tab-bar" id="tabBar">
           <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')">内部①</button>
           <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')">内部②</button>
@@ -2503,7 +2511,7 @@ self.addEventListener('fetch', function(e) {
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.31";
+      const CACHE_NAME = "jtable-v0.32";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -2656,12 +2664,20 @@ self.addEventListener('fetch', function(e) {
       tategusonshoo1: {
         omit: ['shiage'],
         labels: { kakubu: '各部仕上げ材' },
-        autoFill: { target: 'sonsho', value: '建具不良', watchFields: ['meisho', 'kakubu', 'jokyo', 'jokyoNum1', 'jokyoNum2', 'kasho', 'note'] },
+        jokyo: {
+          options: ['上隙間','中隙間','下隙間','開閉が固い','開閉不能'],
+          nums: [ { key: 'jokyoNum1', label: '', exportLabel: 'mm', unit: 'mm' } ],
+        },
+        autoFill: { target: 'sonsho', value: '建具不良', watchFields: ['meisho', 'kakubu', 'jokyo', 'jokyoNum1', 'kasho', 'note'] },
       },
       tategusonshoo2: {
         omit: ['shiage'],
         labels: { kakubu: '各部仕上げ材' },
-        autoFill: { target: 'sonsho', value: '建具不良', watchFields: ['meisho', 'kakubu', 'jokyo', 'jokyoNum1', 'jokyoNum2', 'kasho', 'note'] },
+        jokyo: {
+          options: ['上隙間','中隙間','下隙間','開閉が固い','開閉不能'],
+          nums: [ { key: 'jokyoNum1', label: '', exportLabel: 'mm', unit: 'mm' } ],
+        },
+        autoFill: { target: 'sonsho', value: '建具不良', watchFields: ['meisho', 'kakubu', 'jokyo', 'jokyoNum1', 'kasho', 'note'] },
       },
       keishasoktei1: {
         omit: ['shiage'],
