@@ -172,6 +172,12 @@
       font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
       box-shadow: 0 4px 15px rgba(0,180,216,0.3);
     }
+    .backup-btn {
+      background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+      color: #fff; border: none; padding: 7px 12px; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
     /* Jスタンプへのワンタップ切り替えボタン（画面左下に固定表示）。Jスタンプ側にも同じ仕組みで
        Jtableへ戻るボタンを置いている。リンク先URLが変わった場合（リポジトリ名変更など）は、
        このhrefだけ書き換えればよい。
@@ -186,6 +192,21 @@
       box-shadow: 0 4px 15px rgba(91,61,240,0.4);
     }
     .app-switch-fab:active { transform: scale(0.92); }
+
+    /* ── バックアップ／復元ダイアログ（numpad-overlayと同じ仕組みの中央モーダル） ── */
+    .backup-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1100; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+    .backup-overlay.show { display: flex; }
+    .backup-container { background: #16213e; border-radius: 24px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.2); width: min(86vw, 360px); display: flex; flex-direction: column; gap: 12px; }
+    .backup-title { font-size: 17px; font-weight: 700; color: #fff; text-align: center; }
+    .backup-info-text { font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.6; text-align: center; }
+    .backup-action-btn {
+      width: 100%; border: none; border-radius: 12px; padding: 13px 10px;
+      font-size: 15px; font-weight: 600; cursor: pointer; color: #fff;
+    }
+    .backup-action-btn:active { transform: scale(0.97); }
+    .backup-action-btn.save    { background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%); }
+    .backup-action-btn.restore { background: linear-gradient(135deg, #2ec4b6 0%, #20a39e 100%); }
+    .backup-action-btn.close   { background: rgba(255,255,255,0.12); }
 
     /* ── メインコンテンツ ── */
     .main-content { flex: 1; display: flex; gap: 8px; min-height: 0; }
@@ -518,7 +539,7 @@
     <div class="header">
       <div class="header-top">
         <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.37</div>
+        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.39</div>
         <div class="tab-bar" id="tabBar">
           <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
           <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -530,6 +551,7 @@
         </div>
         <div class="header-controls">
           <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()">☀ 昼</button>
+          <button class="backup-btn" onclick="openBackupDialog()">💾 バックアップ</button>
           <button class="export-btn" onclick="exportToExcel()">Excel</button>
         </div>
       </div>
@@ -615,6 +637,28 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- バックアップ／復元ダイアログ（ヘッダーの「💾 バックアップ」ボタンから開く） -->
+  <div class="backup-overlay" id="backupOverlay" onclick="if(event.target===this)closeBackupDialog()">
+    <div class="backup-container">
+      <div class="backup-title">データのバックアップ</div>
+      <div class="backup-info-text">全タブの入力内容を1つのファイルに保存できます。Excel出力とは別に、入力内容そのものの控えとして使えます。</div>
+      <button class="backup-action-btn save" onclick="exportBackupFile()">📤 ファイルに保存</button>
+      <button class="backup-action-btn restore" onclick="triggerImportFile()">📥 ファイルから復元</button>
+      <button class="backup-action-btn close" onclick="closeBackupDialog()">閉じる</button>
+    </div>
+  </div>
+  <input type="file" id="backupFileInput" accept="application/json,.json" style="display:none" onchange="importBackupFile(event)">
+
+  <!-- 起動時、保存されているはずのデータが見つからずバックアップだけ残っている場合に表示する復元確認ダイアログ -->
+  <div class="backup-overlay" id="restorePromptOverlay">
+    <div class="backup-container">
+      <div class="backup-title">バックアップから復元しますか？</div>
+      <div class="backup-info-text" id="restorePromptText"></div>
+      <button class="backup-action-btn restore" onclick="applyRollingRestore()">復元する</button>
+      <button class="backup-action-btn close" onclick="dismissRollingRestore()">復元しない</button>
+    </div>
+  </div>
+
   <a class="app-switch-fab" href="https://joujing9119-maker.github.io/jstamp/" title="Jスタンプに切り替え">📷</a>
 
   <script>
@@ -625,7 +669,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.37";
+      const CACHE_NAME = "jtable-v0.39";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -932,6 +976,9 @@ self.addEventListener('fetch', function(e) {
       // 自由入力で確定した値を一時的に選択肢として保持する（タブID → 列キー → 値の配列）。
       // ページのリロードでは保持しない（一時的なメモ的扱い）。Excel出力が成功した時点で全クリアされる。
       tempOptions: {},
+      // 起動時のデータ読み込み中に検出した状態を記録する（init完了後にまとめて通知・確認する）。
+      autoRecoveredTabs: [], // メインデータが破損していたためバックアップから自動復旧したタブ
+      possibleLostTabs: [],  // メインデータが見つからず、バックアップにのみ入力済みデータが残っているタブ
     };
 
     // 現在のタブのデータ配列・保存処理（頻出のため関数化）
@@ -939,7 +986,15 @@ self.addEventListener('fetch', function(e) {
     const getData  = () => App.tabDataCache[App.activeTabId];
     function saveData(rowIndex, autoFillOptions) {
       if (rowIndex !== undefined && rowIndex !== null) applyAutoFillRule(getData()[rowIndex], autoFillOptions);
-      localStorage.setItem(TAB_DEFS[App.activeTabId].storageKey, JSON.stringify(getData()));
+      const key = TAB_DEFS[App.activeTabId].storageKey;
+      // 保存中の不具合・データ破損対策のローリングバックアップ：
+      // 上書きする前の内容（直前の保存内容）を別キーに退避しておく。
+      // 退避前の内容が壊れている（JSON.parseできない）場合は、それより古い正常なバックアップを残すため上書きしない。
+      const prevRaw = localStorage.getItem(key);
+      if (prevRaw) {
+        try { JSON.parse(prevRaw); localStorage.setItem(key + '_bak', prevRaw); } catch (e) { /* 壊れていた場合は何もしない */ }
+      }
+      localStorage.setItem(key, JSON.stringify(getData()));
       updateTabBadge(App.activeTabId);
     }
 
@@ -1022,12 +1077,46 @@ self.addEventListener('fetch', function(e) {
       return row;
     }
 
+    // メインの保存データ（localStorage）を読み込む。
+    // ・JSON.parseに失敗した場合（破損）→ ローリングバックアップ（直前の保存内容）から自動復旧し、メインキーにも書き戻す。
+    // ・メインキー自体が存在せず、バックアップにだけ入力済みらしいデータが残っている場合
+    //   → 「データ消失の可能性あり」として記録するのみ（このタブはまだ空のまま読み込む）。
+    //     実際に復元するかどうかはinit完了後、マスターに復元確認ダイアログで判断してもらう。
+    function resolveStoredRows(tabId) {
+      const key = TAB_DEFS[tabId].storageKey;
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        try { return JSON.parse(raw); }
+        catch (e) {
+          const bak = localStorage.getItem(key + '_bak');
+          if (bak) {
+            try {
+              const restored = JSON.parse(bak);
+              localStorage.setItem(key, bak);
+              App.autoRecoveredTabs.push(tabId);
+              return restored;
+            } catch (e2) { /* バックアップも壊れていた場合は空で開始 */ }
+          }
+          return [];
+        }
+      }
+      const bak = localStorage.getItem(key + '_bak');
+      if (bak) {
+        try {
+          const bakRows = JSON.parse(bak);
+          const hasInput = Array.isArray(bakRows) && bakRows.some(row =>
+            row && Object.keys(row).some(k => !k.startsWith('_') && row[k] !== '' && row[k] !== 0));
+          if (hasInput) App.possibleLostTabs.push(tabId);
+        } catch (e) { /* バックアップ自体が壊れていれば無視 */ }
+      }
+      return [];
+    }
+
     function loadTabData(tabId) {
       if (App.tabDataCache[tabId]) return App.tabDataCache[tabId];
       const columns = TAB_DEFS[tabId].columns;
       const defs = fieldDefsOf(columns);
-      const raw = localStorage.getItem(TAB_DEFS[tabId].storageKey);
-      const src = raw ? JSON.parse(raw) : [];
+      const src = resolveStoredRows(tabId);
       App.tabDataCache[tabId] = Array.from({ length: CONST.TOTAL_ROWS }, (_, i) => {
         const d = src[i] || {};
         const row = {};
@@ -1811,6 +1900,30 @@ self.addEventListener('fetch', function(e) {
     function updateText(rowIndex, field, value) { getData()[rowIndex][field] = value; saveData(rowIndex); refreshActiveRow(); }
 
 
+    /* ── ファイルダウンロード共通処理（Excel出力・バックアップ書き出しで共通利用） ── */
+    // iOS判定（Safariはdownload属性を無視するため、ファイル名の付与有無を分ける必要がある）
+    const IS_IOS_DEVICE = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // 現在時刻から「YYYYMMDD_HHMMSS」形式のタイムスタンプ文字列を生成する（ファイル名の一部として使用）
+    function genTimestamp() {
+      const now = new Date();
+      const p = n => String(n).padStart(2, '0');
+      return `${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}_${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
+    }
+
+    // Blobをファイルとしてダウンロードする。iOSではdownload属性を付与しない（Safariが無視するため）。
+    // revokeObjectURLまでの待機時間もiOSのみ長めにしている（ダウンロード処理がblob URLを
+    // 参照し終えるまでに時間がかかるため、早く解放すると失敗することがある）。
+    function downloadBlob(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      if (!IS_IOS_DEVICE) a.download = fileName;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), IS_IOS_DEVICE ? 10000 : 5000);
+    }
+
     /* ── Excel出力（iOS/iPad対応） ── */
     // タブの columns 定義から、出力列のヘッダー名一覧・列幅一覧・行データ抽出関数を組み立てる
     function buildExportSpec(columns) {
@@ -1909,24 +2022,14 @@ self.addEventListener('fetch', function(e) {
       ws['!cols']   = colsSpec.slice(0, colOffset);
       XLSX.utils.book_append_sheet(wb, ws, 'survey');
 
-      const now = new Date();
-      const p   = n => String(n).padStart(2,'0');
-      const ts  = `${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}_${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
-      const fileName = `survey_${ts}.xlsx`;
+      const fileName = `survey_${genTimestamp()}.xlsx`;
 
       try {
         const blob = new Blob(
           [XLSX.write(wb, { bookType: 'xlsx', type: 'array' })],
           { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
         );
-        const url  = URL.createObjectURL(blob);
-        const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
-                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const a = document.createElement('a');
-        a.href = url;
-        if (!isIOS) a.download = fileName; // iOSはdownload属性を無視するため付与しない
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), isIOS ? 10000 : 5000);
+        downloadBlob(blob, fileName);
         showToast('Excel downloaded');
         clearAllTempOptions(); // 出力成功時、自由入力による一時選択肢を全タブ・全列分まとめて消去する
       } catch {
@@ -1937,6 +2040,101 @@ self.addEventListener('fetch', function(e) {
         }
         catch (e) { showToast('Download failed: ' + e.message); }
       }
+    }
+
+    /* ── バックアップ／復元（localStorageの内容をファイルに保存・ファイルから書き戻す） ──
+       Excel出力とは別に、入力内容そのもの（全タブ・全行）を1つのJSONファイルとして
+       端末に保存できるようにしたもの。ブラウザ側のストレージが消えてしまった場合でも、
+       このファイルが端末（Filesアプリ等）に残っていれば復元できる。 */
+    function openBackupDialog() {
+      document.getElementById('backupOverlay').classList.add('show');
+    }
+    function closeBackupDialog() {
+      document.getElementById('backupOverlay').classList.remove('show');
+    }
+
+    function exportBackupFile() {
+      const payload = { app: 'jtable', exportedAt: new Date().toISOString(), tabs: {} };
+      Object.keys(TAB_DEFS).forEach(tabId => {
+        const raw = localStorage.getItem(TAB_DEFS[tabId].storageKey);
+        payload.tabs[tabId] = raw ? JSON.parse(raw) : [];
+      });
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      const fileName = `jtable_backup_${genTimestamp()}.json`;
+      downloadBlob(blob, fileName);
+      showToast('バックアップファイルを保存しました');
+      closeBackupDialog();
+    }
+
+    function triggerImportFile() {
+      document.getElementById('backupFileInput').click();
+    }
+
+    function importBackupFile(event) {
+      const file = event.target.files[0];
+      event.target.value = ''; // 同じファイルを連続で選び直しても変更イベントが発生するようにリセット
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        let data;
+        try { data = JSON.parse(reader.result); }
+        catch (e) { showToast('ファイルの読み込みに失敗しました'); return; }
+        if (!data || typeof data.tabs !== 'object') { showToast('バックアップファイルの形式が正しくありません'); return; }
+        const validTabIds = Object.keys(TAB_DEFS).filter(id => Array.isArray(data.tabs[id]));
+        if (validTabIds.length === 0) { showToast('復元できるデータが見つかりませんでした'); return; }
+        if (!confirm('現在の入力内容を上書きして復元します。よろしいですか？')) return;
+        validTabIds.forEach(tabId => {
+          localStorage.setItem(TAB_DEFS[tabId].storageKey, JSON.stringify(data.tabs[tabId]));
+          delete App.tabDataCache[tabId]; // キャッシュを破棄し、次回参照時に復元後の内容で再読込させる
+        });
+        Object.keys(TAB_DEFS).forEach(loadTabData);
+        updateAllTabBadges();
+        buildLayoutForActiveTab();
+        renderAllRows();
+        closeBackupDialog();
+        showToast('バックアップから復元しました');
+      };
+      reader.onerror = () => showToast('ファイルの読み込みに失敗しました');
+      reader.readAsText(file);
+    }
+
+    /* ── 起動時のローリングバックアップ通知・復元確認 ──
+       init()内、全タブのデータ読み込み直後に呼び出す。
+       ・autoRecoveredTabs：メインデータが破損していたためバックアップから自動復旧済み → 結果を知らせるだけ
+       ・possibleLostTabs：メインデータが見つからずバックアップにのみ入力済みデータが残っている
+         → 上書きしてよいか分からないため、ダイアログで確認してから復元する */
+    function notifyStartupRecoveryStatus() {
+      if (App.autoRecoveredTabs.length > 0) {
+        const labels = App.autoRecoveredTabs.map(id => TAB_DEFS[id].label).join('・');
+        showToast(`データの異常を検知し、直前の保存内容から自動復旧しました（${labels}）`);
+      }
+      if (App.possibleLostTabs.length > 0) {
+        const labels = App.possibleLostTabs.map(id => TAB_DEFS[id].label).join('・');
+        document.getElementById('restorePromptText').textContent =
+          `保存されていたはずのデータ（${labels}）が見つかりませんでした。直前の保存内容のバックアップが残っています。復元しますか？`;
+        document.getElementById('restorePromptOverlay').classList.add('show');
+      }
+    }
+
+    function applyRollingRestore() {
+      App.possibleLostTabs.forEach(tabId => {
+        const bak = localStorage.getItem(TAB_DEFS[tabId].storageKey + '_bak');
+        if (!bak) return;
+        localStorage.setItem(TAB_DEFS[tabId].storageKey, bak);
+        delete App.tabDataCache[tabId];
+      });
+      Object.keys(TAB_DEFS).forEach(loadTabData);
+      App.possibleLostTabs = [];
+      updateAllTabBadges();
+      buildLayoutForActiveTab();
+      renderAllRows();
+      document.getElementById('restorePromptOverlay').classList.remove('show');
+      showToast('バックアップから復元しました');
+    }
+
+    function dismissRollingRestore() {
+      App.possibleLostTabs = [];
+      document.getElementById('restorePromptOverlay').classList.remove('show');
     }
 
     /* ── Toast ── */
@@ -1959,6 +2157,7 @@ self.addEventListener('fetch', function(e) {
       loadTheme();
       loadFreq();
       Object.keys(TAB_DEFS).forEach(loadTabData);
+      notifyStartupRecoveryStatus();
       updateAllTabBadges();
       buildLayoutForActiveTab();
       calculateDimensions();
