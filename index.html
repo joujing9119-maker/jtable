@@ -348,7 +348,7 @@
     /* ── 損傷の状況（アクティブ行） ── */
     .jokyo-cell-inner { display: flex; align-items: stretch; gap: 5px; width: 100%; height: 90%; min-height: 40px; }
     .jokyo-panel-trigger {
-      flex: 0 0 130px; height: 100%;
+      flex: 0 0 var(--jokyo-trigger-w, 130px); height: 100%;
       background: var(--input-bg); border: 2px solid var(--input-border);
       border-radius: 8px; color: var(--text-main); cursor: pointer;
       display: flex; align-items: center; justify-content: space-between;
@@ -539,7 +539,7 @@
     <div class="header">
       <div class="header-top">
         <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.39</div>
+        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.40</div>
         <div class="tab-bar" id="tabBar">
           <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
           <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -669,7 +669,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.39";
+      const CACHE_NAME = "jtable-v0.40";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1151,12 +1151,8 @@ self.addEventListener('fetch', function(e) {
     function buildLayoutForActiveTab() {
       const columns = getColumns();
 
-      // 1. グリッド列幅をCSS変数にセット（No.列56px固定 + 各columnのwidth）
-      const widths = ['56px', ...columns.map(c => `${c.width}px`)];
-      const minWidth = widths.reduce((sum, w) => sum + parseInt(w), 0);
-      document.documentElement.style.setProperty('--grid-cols-header', widths.join(' '));
-      document.documentElement.style.setProperty('--grid-cols-row', [...widths.slice(0, -1), '1fr'].join(' '));
-      document.documentElement.style.setProperty('--grid-min-width', `${minWidth}px`);
+      // 1. グリッド列幅をCSS変数にセット（No.列56px固定 + 各columnの幅）
+      updateColumnWidths();
 
       // 2. ヘッダー行を生成
       const headerHtml = ['<div class="table-header-cell">No.</div>']
@@ -1170,6 +1166,43 @@ self.addEventListener('fetch', function(e) {
         .map(c => buildPanelHtml(c))
         .join('');
       document.getElementById('panelsContainer').innerHTML = panelsHtml;
+    }
+
+    /* ── 列幅の動的計算 ──
+       select型（パネルで選択する列）・select_with_nums型（損傷の状況など）の列は、画面サイズに
+       よって列名が「…」で省略されてしまうことがあったため、横スクロールに対応している分だけ
+       幅を伸ばせるようにし、「入力枠の高さの大体2倍の幅」になるよう、行の高さ（Drum.rowHeight）
+       が変わるたびに（初期化・リサイズ時）再計算する。counter・text型の列は従来どおり固定幅のまま。
+    */
+    function updateColumnWidths() {
+      const columns = getColumns();
+      const widths = ['56px', ...columns.map(c => `${dynamicColumnWidth(c)}px`)];
+      const minWidth = widths.reduce((sum, w) => sum + parseInt(w), 0);
+      document.documentElement.style.setProperty('--grid-cols-header', widths.join(' '));
+      document.documentElement.style.setProperty('--grid-cols-row', [...widths.slice(0, -1), '1fr'].join(' '));
+      document.documentElement.style.setProperty('--grid-min-width', `${minWidth}px`);
+    }
+
+    // 1列分の表示幅(px)を計算する。
+    // - select型: パネル開閉ボタン（.panel-trigger、高さ=セルの78%・最小38px）の高さの2倍
+    // - select_with_nums型: トリガーボタン（.jokyo-panel-trigger、高さ=セルの90%・最小40px）と、
+    //   数値入力欄（.num-input-group。トリガーと同じ高さの枠をnums件数で均等分割）それぞれの
+    //   「高さの2倍」を求め、合計する（+5pxは.jokyo-cell-innerのgap分）。
+    //   トリガー側の実際の幅は --jokyo-trigger-w としてCSS側にも反映し、見た目を一致させる。
+    // - counter・text型: 従来どおりcolumns定義のwidthをそのまま使う（変更なし）
+    function dynamicColumnWidth(col) {
+      if (col.type === 'select') {
+        const triggerH = Math.max(38, Drum.rowHeight * 0.78);
+        return Math.round(triggerH * 2);
+      }
+      if (col.type === 'select_with_nums') {
+        const innerH   = Math.max(40, Drum.rowHeight * 0.90);
+        const triggerW = Math.round(innerH * 2);
+        const numRowW  = Math.round((innerH / col.nums.length) * 2);
+        document.documentElement.style.setProperty('--jokyo-trigger-w', `${triggerW}px`);
+        return triggerW + numRowW + 5;
+      }
+      return col.width;
     }
 
     // 1列分の選択パネルHTMLを生成（自由入力欄＋プリセット選択肢＋クリアボタン）
@@ -1219,6 +1252,7 @@ self.addEventListener('fetch', function(e) {
     function handleResize() {
       requestAnimationFrame(() => {
         calculateDimensions();
+        updateColumnWidths();
         document.getElementById('drumContainer').querySelectorAll('.table-row').forEach(r => {
           r.style.height   = `${Drum.rowHeight}px`;
           r.style.fontSize = calcFontSize();
@@ -2161,6 +2195,7 @@ self.addEventListener('fetch', function(e) {
       updateAllTabBadges();
       buildLayoutForActiveTab();
       calculateDimensions();
+      updateColumnWidths(); // buildLayoutForActiveTab時点ではDrum.rowHeightが未確定のため、ここで正しい値で再計算する
       renderAllRows();
       Drum.targetRow = Drum.currentRow;
       updateRowInfo();
