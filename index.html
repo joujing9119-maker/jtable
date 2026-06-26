@@ -178,6 +178,12 @@
       font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
+    .delete-all-btn {
+      background: linear-gradient(135deg, #e63946 0%, #b8232f 100%);
+      color: #fff; border: none; padding: 7px 12px; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+      box-shadow: 0 4px 15px rgba(230,57,70,0.3);
+    }
     /* Jスタンプへのワンタップ切り替えボタン（画面左下に固定表示）。Jスタンプ側にも同じ仕組みで
        Jtableへ戻るボタンを置いている。リンク先URLが変わった場合（リポジトリ名変更など）は、
        このhrefだけ書き換えればよい。
@@ -204,7 +210,6 @@
       font-size: 15px; font-weight: 600; cursor: pointer; color: #fff;
     }
     .backup-action-btn:active { transform: scale(0.97); }
-    .backup-action-btn.save    { background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%); }
     .backup-action-btn.restore { background: linear-gradient(135deg, #2ec4b6 0%, #20a39e 100%); }
     .backup-action-btn.close   { background: rgba(255,255,255,0.12); }
 
@@ -415,6 +420,17 @@
     /* ── 青帯ハイライト ── */
     .center-highlight { position: absolute; left: 0; right: 0; border-top: 3px solid #0077b6; border-bottom: 3px solid #0077b6; pointer-events: none; z-index: 10; background: var(--highlight-bg); }
 
+    /* 案件名表示（ドラム領域の左上に常時表示。タップして編集できる）。
+       保存（Excel出力）時のファイル名末尾に「案件名＋様」として付加される。 */
+    .project-name-badge {
+      position: absolute; top: 6px; left: 6px; z-index: 20;
+      max-width: 220px; padding: 4px 10px; border-radius: 8px;
+      background: rgba(0,0,0,0.5); color: #fff;
+      font-size: 12px; font-weight: 700; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+    }
+    .project-name-badge.empty { font-weight: 400; color: rgba(255,255,255,0.75); }
+
     /* ── 名称パネル：数字サブ選択ゾーン（パネル右側・縦長スライドイン） ── */
     .meisho-num-zone {
       position: fixed;
@@ -539,7 +555,7 @@
     <div class="header">
       <div class="header-top">
         <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.40</div>
+        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.42</div>
         <div class="tab-bar" id="tabBar">
           <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
           <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -551,8 +567,9 @@
         </div>
         <div class="header-controls">
           <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()">☀ 昼</button>
-          <button class="backup-btn" onclick="openBackupDialog()">💾 バックアップ</button>
-          <button class="export-btn" onclick="exportToExcel()">Excel</button>
+          <button class="delete-all-btn" onclick="confirmDeleteAll()">🗑 全削除</button>
+          <button class="backup-btn" onclick="triggerImportFile()">📂 開く</button>
+          <button class="export-btn" onclick="exportToExcel()">💾 保存</button>
         </div>
       </div>
     </div>
@@ -565,6 +582,7 @@
         <div class="table-scroll-wrapper" id="tableScrollWrapper">
           <div class="drum-viewport" id="drumViewport">
             <div class="center-highlight" id="centerHighlight"></div>
+            <div class="project-name-badge empty" id="projectNameBadge" onclick="openProjectNameEditor()">案件名</div>
             <div class="drum-container" id="drumContainer"></div>
           </div>
         </div>
@@ -637,16 +655,6 @@
 
   <div class="toast" id="toast"></div>
 
-  <!-- バックアップ／復元ダイアログ（ヘッダーの「💾 バックアップ」ボタンから開く） -->
-  <div class="backup-overlay" id="backupOverlay" onclick="if(event.target===this)closeBackupDialog()">
-    <div class="backup-container">
-      <div class="backup-title">データのバックアップ</div>
-      <div class="backup-info-text">全タブの入力内容を1つのファイルに保存できます。Excel出力とは別に、入力内容そのものの控えとして使えます。</div>
-      <button class="backup-action-btn save" onclick="exportBackupFile()">📤 ファイルに保存</button>
-      <button class="backup-action-btn restore" onclick="triggerImportFile()">📥 ファイルから復元</button>
-      <button class="backup-action-btn close" onclick="closeBackupDialog()">閉じる</button>
-    </div>
-  </div>
   <input type="file" id="backupFileInput" accept="application/json,.json" style="display:none" onchange="importBackupFile(event)">
 
   <!-- 起動時、保存されているはずのデータが見つからずバックアップだけ残っている場合に表示する復元確認ダイアログ -->
@@ -659,7 +667,7 @@
     </div>
   </div>
 
-  <a class="app-switch-fab" href="https://joujing9119-maker.github.io/jstamp/" title="Jスタンプに切り替え">📷</a>
+  <a class="app-switch-fab" href="https://joujing9119-maker.github.io/jstamp/" title="Jスタンプに切り替え">🏠</a>
 
   <script>
     // ── Service Worker (Blob URL方式・Jstampと同じ仕組み) ──────────────────
@@ -669,7 +677,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.40";
+      const CACHE_NAME = "jtable-v0.42";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -979,6 +987,11 @@ self.addEventListener('fetch', function(e) {
       // 起動時のデータ読み込み中に検出した状態を記録する（init完了後にまとめて通知・確認する）。
       autoRecoveredTabs: [], // メインデータが破損していたためバックアップから自動復旧したタブ
       possibleLostTabs: [],  // メインデータが見つからず、バックアップにのみ入力済みデータが残っているタブ
+      // 「保存」（Excel出力）成功時にfalseへ戻る。データ変更（saveData）が行われるとtrueになり、
+      // 「全削除」実行時、まだ保存していない内容がある場合に追加の確認を出すために使う（アプリ起動中のみ保持）。
+      hasUnsavedChanges: false,
+      // 案件名（任意）。入力すると「○○様」の形で画面左上に常時表示し、保存時のファイル名末尾にも付加する。
+      projectName: '',
     };
 
     // 現在のタブのデータ配列・保存処理（頻出のため関数化）
@@ -995,6 +1008,7 @@ self.addEventListener('fetch', function(e) {
         try { JSON.parse(prevRaw); localStorage.setItem(key + '_bak', prevRaw); } catch (e) { /* 壊れていた場合は何もしない */ }
       }
       localStorage.setItem(key, JSON.stringify(getData()));
+      App.hasUnsavedChanges = true;
       updateTabBadge(App.activeTabId);
     }
 
@@ -1185,9 +1199,12 @@ self.addEventListener('fetch', function(e) {
 
     // 1列分の表示幅(px)を計算する。
     // - select型: パネル開閉ボタン（.panel-trigger、高さ=セルの78%・最小38px）の高さの2倍
-    // - select_with_nums型: トリガーボタン（.jokyo-panel-trigger、高さ=セルの90%・最小40px）と、
-    //   数値入力欄（.num-input-group。トリガーと同じ高さの枠をnums件数で均等分割）それぞれの
-    //   「高さの2倍」を求め、合計する（+5pxは.jokyo-cell-innerのgap分）。
+    // - select_with_nums型: トリガーボタン（.jokyo-panel-trigger、高さ=セルの90%・最小40px）の高さの2倍を
+    //   triggerWとし、数値入力欄（.num-input-group。トリガーと同じ枠をnums件数で均等分割した高さ）は
+    //   「高さの2倍」と「実際に必要な最小幅（ラベル・±ボタン・表示枠・単位の合計）」の大きい方をnumRowWとして、
+    //   triggerW + numRowW を合計する。
+    //   ※nums件数が2件（L/W）の場合、高さを2分割すると「高さ×2」だけでは±ボタン等が収まる幅に届かず、
+    //     隣の列にはみ出してしまうため、最小幅を下限として保証している。
     //   トリガー側の実際の幅は --jokyo-trigger-w としてCSS側にも反映し、見た目を一致させる。
     // - counter・text型: 従来どおりcolumns定義のwidthをそのまま使う（変更なし）
     function dynamicColumnWidth(col) {
@@ -1198,9 +1215,19 @@ self.addEventListener('fetch', function(e) {
       if (col.type === 'select_with_nums') {
         const innerH   = Math.max(40, Drum.rowHeight * 0.90);
         const triggerW = Math.round(innerH * 2);
-        const numRowW  = Math.round((innerH / col.nums.length) * 2);
+        const fontPx   = Math.max(11, Math.min(26, Drum.rowHeight * 0.185)); // calcFontSizeと同じ式
+        // num-input-group 1行あたりの最小限必要な幅（label + ±ボタン + 表示枠の最小幅 + 単位文字）
+        const minNumRowW = Math.max(...col.nums.map(n => {
+          let em = 1.6 + 1.6 + 2.2; // ±ボタン(1.6em×2) + 表示枠の最小幅(2.2em)
+          if (n.label) em += 1.4;   // ラベル(L/Wなど)
+          let px = em * fontPx + 8; // +8はgap(2px)×4箇所分の概算
+          if (n.unit) px += n.unit.length * fontPx * 0.6 + 4; // 単位文字(mmなど)の概算幅
+          return px;
+        }));
+        const numRowH = innerH / col.nums.length;
+        const numRowW = Math.max(Math.round(numRowH * 2), Math.round(minNumRowW));
         document.documentElement.style.setProperty('--jokyo-trigger-w', `${triggerW}px`);
-        return triggerW + numRowW + 5;
+        return triggerW + numRowW + 5 + 8; // +5は.jokyo-cell-innerのgap、+8は.table-cellのpadding(4px×2)分
       }
       return col.width;
     }
@@ -2056,7 +2083,11 @@ self.addEventListener('fetch', function(e) {
       ws['!cols']   = colsSpec.slice(0, colOffset);
       XLSX.utils.book_append_sheet(wb, ws, 'survey');
 
-      const fileName = `survey_${genTimestamp()}.xlsx`;
+      // ファイル名末尾に案件名（入力されていれば）+「様」を付加する。
+      // ファイル名に使えない文字（\/:*?"<>|）は念のため除去する。
+      const safeProjectName = App.projectName.replace(/[\\/:*?"<>|]/g, '').trim();
+      const nameSuffix = safeProjectName ? `_${safeProjectName}様` : '';
+      const fileName = `survey_${genTimestamp()}${nameSuffix}.xlsx`;
 
       try {
         const blob = new Blob(
@@ -2066,40 +2097,21 @@ self.addEventListener('fetch', function(e) {
         downloadBlob(blob, fileName);
         showToast('Excel downloaded');
         clearAllTempOptions(); // 出力成功時、自由入力による一時選択肢を全タブ・全列分まとめて消去する
+        App.hasUnsavedChanges = false; // 保存済みになったので、全削除時の追加確認の判定をリセットする
       } catch {
         try {
           XLSX.writeFile(wb, fileName);
           showToast('Excel downloaded');
           clearAllTempOptions();
+          App.hasUnsavedChanges = false;
         }
         catch (e) { showToast('Download failed: ' + e.message); }
       }
     }
 
-    /* ── バックアップ／復元（localStorageの内容をファイルに保存・ファイルから書き戻す） ──
-       Excel出力とは別に、入力内容そのもの（全タブ・全行）を1つのJSONファイルとして
-       端末に保存できるようにしたもの。ブラウザ側のストレージが消えてしまった場合でも、
-       このファイルが端末（Filesアプリ等）に残っていれば復元できる。 */
-    function openBackupDialog() {
-      document.getElementById('backupOverlay').classList.add('show');
-    }
-    function closeBackupDialog() {
-      document.getElementById('backupOverlay').classList.remove('show');
-    }
-
-    function exportBackupFile() {
-      const payload = { app: 'jtable', exportedAt: new Date().toISOString(), tabs: {} };
-      Object.keys(TAB_DEFS).forEach(tabId => {
-        const raw = localStorage.getItem(TAB_DEFS[tabId].storageKey);
-        payload.tabs[tabId] = raw ? JSON.parse(raw) : [];
-      });
-      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-      const fileName = `jtable_backup_${genTimestamp()}.json`;
-      downloadBlob(blob, fileName);
-      showToast('バックアップファイルを保存しました');
-      closeBackupDialog();
-    }
-
+    /* ── 復元（ファイルから書き戻す） ──
+       Excel出力（保存）とは別に、入力内容そのもの（全タブ・全行）をJSONファイルから読み込んで
+       復元できるようにしたもの。ヘッダーの「📂 開く」ボタンから直接ファイル選択を呼び出す。 */
     function triggerImportFile() {
       document.getElementById('backupFileInput').click();
     }
@@ -2125,11 +2137,54 @@ self.addEventListener('fetch', function(e) {
         updateAllTabBadges();
         buildLayoutForActiveTab();
         renderAllRows();
-        closeBackupDialog();
+        App.hasUnsavedChanges = false; // 復元直後はファイルの内容そのものなので、未保存扱いにはしない
         showToast('バックアップから復元しました');
       };
       reader.onerror = () => showToast('ファイルの読み込みに失敗しました');
       reader.readAsText(file);
+    }
+
+    /* ── 全削除（全タブ・全行の入力内容を一斉消去） ──
+       ヘッダーの「🗑 全削除」ボタンから呼び出す。元に戻せない操作のため、必ず確認を取る。
+       さらに「保存（Excel出力）」がまだ行われていない入力内容がある場合は、追加でもう一度確認する。 */
+    function confirmDeleteAll() {
+      if (!confirm('全タブの入力内容をすべて削除します。この操作は元に戻せません。よろしいですか？')) return;
+      if (App.hasUnsavedChanges) {
+        if (!confirm('まだ保存（Excel出力）していない入力内容があります。保存せずに削除してもよろしいですか？')) return;
+      }
+      performDeleteAll();
+    }
+
+    function performDeleteAll() {
+      Object.keys(TAB_DEFS).forEach(tabId => {
+        const key = TAB_DEFS[tabId].storageKey;
+        localStorage.removeItem(key);
+        localStorage.removeItem(key + '_bak'); // ローリングバックアップも消さないと、次回起動時に復元確認が出てしまう
+        delete App.tabDataCache[tabId];
+      });
+      clearAllTempOptions();
+      Object.keys(TAB_DEFS).forEach(loadTabData);
+      updateAllTabBadges();
+      buildLayoutForActiveTab();
+      renderAllRows();
+      App.hasUnsavedChanges = false;
+      showToast('全データを削除しました');
+    }
+
+    /* ── 案件名表示（ドラム領域左上のバッジ。タップして編集） ──
+       入力すると「○○様」の形で常時表示し、保存（Excel出力）時のファイル名末尾にも付加される。 */
+    function openProjectNameEditor() {
+      const input = prompt('案件名を入力してください（保存ファイル名の末尾に追加されます）', App.projectName);
+      if (input === null) return; // キャンセル
+      App.projectName = input.trim();
+      localStorage.setItem('jtable_project_name', App.projectName);
+      updateProjectNameDisplay();
+    }
+
+    function updateProjectNameDisplay() {
+      const el = document.getElementById('projectNameBadge');
+      el.textContent = App.projectName ? `${App.projectName}様` : '案件名';
+      el.classList.toggle('empty', !App.projectName);
     }
 
     /* ── 起動時のローリングバックアップ通知・復元確認 ──
@@ -2190,6 +2245,8 @@ self.addEventListener('fetch', function(e) {
     function init() {
       loadTheme();
       loadFreq();
+      App.projectName = localStorage.getItem('jtable_project_name') || '';
+      updateProjectNameDisplay();
       Object.keys(TAB_DEFS).forEach(loadTabData);
       notifyStartupRecoveryStatus();
       updateAllTabBadges();
