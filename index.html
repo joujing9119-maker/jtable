@@ -92,10 +92,14 @@
     }
 
     .app-container {
-      display: flex; flex-direction: column;
+      display: flex; flex-direction: row;
       height: 100vh; height: 100dvh;
       padding: 10px; gap: 8px;
     }
+    /* 上側ツールバー（header）とテーブル領域(table-area)を縦に並べる左カラム。
+       右側ツールバー(nav-area)は、このleft-columnとは別にapp-containerの直接の子として
+       横に並ぶようにし、画面の上から下まで伸びるようにしている。 */
+    .left-column { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
 
     /* ── ヘッダー ── */
     .header {
@@ -158,30 +162,29 @@
       pointer-events: none;
     }
     .tab-data-badge.show { display: flex; }
-    .header-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .side-toolbar { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+    .side-tool-btn {
+      width: 60px; height: 56px; border: none; border-radius: 14px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+      cursor: pointer; color: #fff;
+    }
+    .side-tool-btn .side-btn-icon  { font-size: 20px; line-height: 1; }
+    .side-tool-btn .side-btn-label { font-size: 10px; font-weight: 700; line-height: 1; }
     .theme-toggle-btn {
-      background: #4c566a; color: #fff; border: none;
-      padding: 7px 10px; border-radius: 8px;
-      font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+      background: #4c566a;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
     [data-theme="dark"] .theme-toggle-btn { background: #f4f6f9; color: #1a1a2e; }
     .export-btn {
       background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
-      color: #fff; border: none; padding: 7px 12px; border-radius: 8px;
-      font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
       box-shadow: 0 4px 15px rgba(0,180,216,0.3);
     }
     .backup-btn {
       background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-      color: #fff; border: none; padding: 7px 12px; border-radius: 8px;
-      font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
     .delete-all-btn {
       background: linear-gradient(135deg, #e63946 0%, #b8232f 100%);
-      color: #fff; border: none; padding: 7px 12px; border-radius: 8px;
-      font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
       box-shadow: 0 4px 15px rgba(230,57,70,0.3);
     }
     /* Jスタンプへのワンタップ切り替えボタン（画面左下に固定表示）。Jスタンプ側にも同じ仕組みで
@@ -219,9 +222,6 @@
     }
     .project-name-input:focus { border-color: #2ec4b6; }
     .project-name-input::placeholder { color: rgba(255,255,255,0.4); }
-
-    /* ── メインコンテンツ ── */
-    .main-content { flex: 1; display: flex; gap: 8px; min-height: 0; }
 
     /* ── テーブルエリア ── */
     .table-area {
@@ -403,7 +403,7 @@
 
     /* ── ナビエリア ── */
     .nav-area { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 2px; flex-shrink: 0; }
-    .nav-buttons { display: flex; flex-direction: column; gap: 10px; flex: 1; justify-content: center; }
+    .nav-buttons { display: flex; flex-direction: column; gap: 10px; }
     .nav-btn { width: 36px; height: 80px; border: none; border-radius: 10px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6c63ff 0%, #5a52d5 100%); color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
     .nav-btn:disabled { opacity: 0.3; }
     .row-info-side { font-size: 11px; font-weight: 700; color: var(--text-sub); text-align: center; white-space: nowrap; flex-shrink: 0; }
@@ -559,29 +559,23 @@
 </head>
 <body>
   <div class="app-container">
-    <div class="header">
-      <div class="header-top">
-        <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.47</div>
-        <div class="tab-bar" id="tabBar">
-          <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
-          <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
-          <button class="tab-btn"        data-tab="tategusonshoo1" onclick="switchTab('tategusonshoo1')"><span class="tab-label">建具①</span><span class="tab-data-badge" id="badge_tategusonshoo1"></span></button>
-          <button class="tab-btn"        data-tab="tategusonshoo2" onclick="switchTab('tategusonshoo2')"><span class="tab-label">建具②</span><span class="tab-data-badge" id="badge_tategusonshoo2"></span></button>
-          <button class="tab-btn"        data-tab="keishasoktei1"  onclick="switchTab('keishasoktei1')"><span class="tab-label">傾斜①</span><span class="tab-data-badge" id="badge_keishasoktei1"></span></button>
-          <button class="tab-btn"        data-tab="keishasoktei2"  onclick="switchTab('keishasoktei2')"><span class="tab-label">傾斜②</span><span class="tab-data-badge" id="badge_keishasoktei2"></span></button>
-          <button class="tab-btn"        data-tab="gaibusonsho"    onclick="switchTab('gaibusonsho')"><span class="tab-label">外部</span><span class="tab-data-badge" id="badge_gaibusonsho"></span></button>
-        </div>
-        <div class="header-controls">
-          <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()">☀ 昼</button>
-          <button class="delete-all-btn" onclick="confirmDeleteAll()">🗑 全削除</button>
-          <button class="backup-btn" onclick="triggerImportFile()">📂 開く</button>
-          <button class="export-btn" onclick="exportToExcel()">💾 保存</button>
+    <div class="left-column">
+      <div class="header">
+        <div class="header-top">
+          <h1>調査表アプリ</h1>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.51</div>
+          <div class="tab-bar" id="tabBar">
+            <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
+            <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
+            <button class="tab-btn"        data-tab="tategusonshoo1" onclick="switchTab('tategusonshoo1')"><span class="tab-label">建具①</span><span class="tab-data-badge" id="badge_tategusonshoo1"></span></button>
+            <button class="tab-btn"        data-tab="tategusonshoo2" onclick="switchTab('tategusonshoo2')"><span class="tab-label">建具②</span><span class="tab-data-badge" id="badge_tategusonshoo2"></span></button>
+            <button class="tab-btn"        data-tab="keishasoktei1"  onclick="switchTab('keishasoktei1')"><span class="tab-label">傾斜①</span><span class="tab-data-badge" id="badge_keishasoktei1"></span></button>
+            <button class="tab-btn"        data-tab="keishasoktei2"  onclick="switchTab('keishasoktei2')"><span class="tab-label">傾斜②</span><span class="tab-data-badge" id="badge_keishasoktei2"></span></button>
+            <button class="tab-btn"        data-tab="gaibusonsho"    onclick="switchTab('gaibusonsho')"><span class="tab-label">外部</span><span class="tab-data-badge" id="badge_gaibusonsho"></span></button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="main-content">
       <div class="table-area">
         <div class="table-header-wrapper" id="tableHeaderWrapper">
           <div class="table-header-row" id="tableHeaderRow"></div>
@@ -594,13 +588,20 @@
           </div>
         </div>
       </div>
-      <div class="nav-area">
-        <div class="nav-buttons">
-          <button class="nav-btn" id="btnUp"   onclick="navigateRow(-1)">▲</button>
-          <button class="nav-btn" id="btnDown" onclick="navigateRow(1)">▼</button>
-        </div>
-        <div class="row-info-side" id="rowInfo">1/200</div>
+    </div>
+
+    <div class="nav-area">
+      <div class="side-toolbar">
+        <button class="side-tool-btn theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()"><span class="side-btn-icon">☀</span><span class="side-btn-label">昼</span></button>
+        <button class="side-tool-btn delete-all-btn" onclick="confirmDeleteAll()"><span class="side-btn-icon">🗑</span><span class="side-btn-label">全削除</span></button>
+        <button class="side-tool-btn backup-btn" onclick="triggerImportFile()"><span class="side-btn-icon">📂</span><span class="side-btn-label">開く</span></button>
+        <button class="side-tool-btn export-btn" onclick="exportToExcel()"><span class="side-btn-icon">💾</span><span class="side-btn-label">保存</span></button>
       </div>
+      <div class="nav-buttons">
+        <button class="nav-btn" id="btnUp"   onclick="navigateRow(-1)">▲</button>
+        <button class="nav-btn" id="btnDown" onclick="navigateRow(1)">▼</button>
+      </div>
+      <div class="row-info-side" id="rowInfo">1/200</div>
     </div>
   </div>
 
@@ -705,7 +706,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.47";
+      const CACHE_NAME = "jtable-v0.51";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1293,7 +1294,9 @@ self.addEventListener('fetch', function(e) {
       updateThemeButton(saved);
     }
     function updateThemeButton(t) {
-      document.getElementById('themeToggleBtn').textContent = t === 'dark' ? '🌙 夜' : '☀ 昼';
+      document.getElementById('themeToggleBtn').innerHTML = t === 'dark'
+        ? '<span class="side-btn-icon">🌙</span><span class="side-btn-label">夜</span>'
+        : '<span class="side-btn-icon">☀</span><span class="side-btn-label">昼</span>';
     }
 
     /* ── 寸法計算 ── */
