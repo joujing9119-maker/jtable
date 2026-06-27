@@ -212,6 +212,13 @@
     .backup-action-btn:active { transform: scale(0.97); }
     .backup-action-btn.restore { background: linear-gradient(135deg, #2ec4b6 0%, #20a39e 100%); }
     .backup-action-btn.close   { background: rgba(255,255,255,0.12); }
+    .project-name-input {
+      background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.25);
+      border-radius: 12px; padding: 10px 14px; font-size: 16px; color: #fff;
+      outline: none; width: 100%; box-sizing: border-box;
+    }
+    .project-name-input:focus { border-color: #2ec4b6; }
+    .project-name-input::placeholder { color: rgba(255,255,255,0.4); }
 
     /* ── メインコンテンツ ── */
     .main-content { flex: 1; display: flex; gap: 8px; min-height: 0; }
@@ -555,7 +562,7 @@
     <div class="header">
       <div class="header-top">
         <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.46</div>
+        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.47</div>
         <div class="tab-bar" id="tabBar">
           <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
           <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -677,6 +684,17 @@
     </div>
   </div>
 
+  <!-- 案件名入力ダイアログ（ブラウザ標準のprompt()の代わりに使用。showTextInput()から呼び出す） -->
+  <div class="backup-overlay" id="projectNameOverlay">
+    <div class="backup-container">
+      <div class="backup-title">案件名を入力</div>
+      <div class="backup-info-text">保存（Excel出力）時のファイル名末尾に「○○様」として追加されます</div>
+      <input type="text" id="projectNameInput" class="project-name-input" placeholder="例：山田">
+      <button class="backup-action-btn restore" id="projectNameOkBtn">OK</button>
+      <button class="backup-action-btn close" id="projectNameCancelBtn">キャンセル</button>
+    </div>
+  </div>
+
   <a class="app-switch-fab" href="https://joujing9119-maker.github.io/jstamp/" title="Jスタンプに切り替え">🏠</a>
 
   <script>
@@ -687,7 +705,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.46";
+      const CACHE_NAME = "jtable-v0.47";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -2203,8 +2221,8 @@ self.addEventListener('fetch', function(e) {
 
     /* ── 案件名表示（ドラム領域左上のバッジ。タップして編集） ──
        入力すると「○○様」の形で常時表示し、保存（Excel出力）時のファイル名末尾にも付加される。 */
-    function openProjectNameEditor() {
-      const input = prompt('案件名を入力してください（保存ファイル名の末尾に追加されます）', App.projectName);
+    async function openProjectNameEditor() {
+      const input = await showTextInput(App.projectName);
       if (input === null) return; // キャンセル
       App.projectName = input.trim();
       localStorage.setItem('jtable_project_name', App.projectName);
@@ -2278,6 +2296,34 @@ self.addEventListener('fetch', function(e) {
         function onCancel() { cleanup(false); }
         okBtn.addEventListener('click', onOk);
         cancelBtn.addEventListener('click', onCancel);
+      });
+    }
+
+    /* ── 汎用テキスト入力ダイアログ（ブラウザ標準のprompt()は使わず、アプリ内デザインのポップアップで入力を取る） ──
+       await showTextInput('初期値') の形で使う。OKなら入力文字列、キャンセルならnullが返る。 */
+    function showTextInput(defaultValue) {
+      return new Promise(resolve => {
+        const overlay   = document.getElementById('projectNameOverlay');
+        const input     = document.getElementById('projectNameInput');
+        const okBtn     = document.getElementById('projectNameOkBtn');
+        const cancelBtn = document.getElementById('projectNameCancelBtn');
+        input.value = defaultValue || '';
+        overlay.classList.add('show');
+        setTimeout(() => input.focus(), 50); // 表示アニメーション後にフォーカスし、確実にキーボードを出す
+
+        function cleanup(result) {
+          overlay.classList.remove('show');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          input.removeEventListener('keydown', onKeydown);
+          resolve(result);
+        }
+        function onOk()       { cleanup(input.value); }
+        function onCancel()   { cleanup(null); }
+        function onKeydown(e) { if (e.key === 'Enter') onOk(); }
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        input.addEventListener('keydown', onKeydown);
       });
     }
 
