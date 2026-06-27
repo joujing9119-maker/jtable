@@ -168,8 +168,8 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
       cursor: pointer; color: #fff;
     }
-    .side-tool-btn .side-btn-icon  { font-size: 20px; line-height: 1; }
-    .side-tool-btn .side-btn-label { font-size: 10px; font-weight: 700; line-height: 1; }
+    .side-tool-btn .side-btn-icon  { font-size: 26px; line-height: 1; }
+    .side-tool-btn .side-btn-label { font-size: 13px; font-weight: 700; line-height: 1; }
     .theme-toggle-btn {
       background: #4c566a;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -563,7 +563,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.51</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.52</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -706,7 +706,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.51";
+      const CACHE_NAME = "jtable-v0.52";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
