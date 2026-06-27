@@ -555,7 +555,7 @@
     <div class="header">
       <div class="header-top">
         <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.42</div>
+        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.44</div>
         <div class="tab-bar" id="tabBar">
           <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
           <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -667,6 +667,16 @@
     </div>
   </div>
 
+  <!-- 汎用確認ダイアログ（ブラウザ標準のconfirm()の代わりに使用。showConfirm()から呼び出す） -->
+  <div class="backup-overlay" id="confirmOverlay">
+    <div class="backup-container">
+      <div class="backup-title">確認</div>
+      <div class="backup-info-text" id="confirmMessage"></div>
+      <button class="backup-action-btn restore" id="confirmOkBtn">実行する</button>
+      <button class="backup-action-btn close" id="confirmCancelBtn">キャンセル</button>
+    </div>
+  </div>
+
   <a class="app-switch-fab" href="https://joujing9119-maker.github.io/jstamp/" title="Jスタンプに切り替え">🏠</a>
 
   <script>
@@ -677,7 +687,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.42";
+      const CACHE_NAME = "jtable-v0.44";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -2025,6 +2035,18 @@ self.addEventListener('fetch', function(e) {
       return m ? `${m[1]} ${m[2]}` : value;
     }
 
+    // 全タブ・全行の入力内容をJSON形式のバックアップファイルとしてダウンロードする。
+    // 「保存（Excel出力）」のたび・「全削除」の直前に、自動で呼び出される（ボタン操作は無し）。
+    function createJsonBackupFile() {
+      const payload = { app: 'jtable', exportedAt: new Date().toISOString(), tabs: {} };
+      Object.keys(TAB_DEFS).forEach(tabId => {
+        const raw = localStorage.getItem(TAB_DEFS[tabId].storageKey);
+        payload.tabs[tabId] = raw ? JSON.parse(raw) : [];
+      });
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      downloadBlob(blob, `jtable_backup_${genTimestamp()}.json`);
+    }
+
     function exportToExcel() {
       if (typeof XLSX === 'undefined') { showToast('XLSX library not loaded'); return; }
 
@@ -2095,13 +2117,15 @@ self.addEventListener('fetch', function(e) {
           { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
         );
         downloadBlob(blob, fileName);
-        showToast('Excel downloaded');
+        createJsonBackupFile(); // Excel出力と同時に、JSON形式のバックアップも自動で残しておく
+        showToast('Excelとバックアップを保存しました');
         clearAllTempOptions(); // 出力成功時、自由入力による一時選択肢を全タブ・全列分まとめて消去する
         App.hasUnsavedChanges = false; // 保存済みになったので、全削除時の追加確認の判定をリセットする
       } catch {
         try {
           XLSX.writeFile(wb, fileName);
-          showToast('Excel downloaded');
+          createJsonBackupFile();
+          showToast('Excelとバックアップを保存しました');
           clearAllTempOptions();
           App.hasUnsavedChanges = false;
         }
@@ -2121,14 +2145,15 @@ self.addEventListener('fetch', function(e) {
       event.target.value = ''; // 同じファイルを連続で選び直しても変更イベントが発生するようにリセット
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         let data;
         try { data = JSON.parse(reader.result); }
         catch (e) { showToast('ファイルの読み込みに失敗しました'); return; }
         if (!data || typeof data.tabs !== 'object') { showToast('バックアップファイルの形式が正しくありません'); return; }
         const validTabIds = Object.keys(TAB_DEFS).filter(id => Array.isArray(data.tabs[id]));
         if (validTabIds.length === 0) { showToast('復元できるデータが見つかりませんでした'); return; }
-        if (!confirm('現在の入力内容を上書きして復元します。よろしいですか？')) return;
+        const ok = await showConfirm('現在の入力内容を上書きして復元します。よろしいですか？', '復元する');
+        if (!ok) return;
         validTabIds.forEach(tabId => {
           localStorage.setItem(TAB_DEFS[tabId].storageKey, JSON.stringify(data.tabs[tabId]));
           delete App.tabDataCache[tabId]; // キャッシュを破棄し、次回参照時に復元後の内容で再読込させる
@@ -2147,15 +2172,18 @@ self.addEventListener('fetch', function(e) {
     /* ── 全削除（全タブ・全行の入力内容を一斉消去） ──
        ヘッダーの「🗑 全削除」ボタンから呼び出す。元に戻せない操作のため、必ず確認を取る。
        さらに「保存（Excel出力）」がまだ行われていない入力内容がある場合は、追加でもう一度確認する。 */
-    function confirmDeleteAll() {
-      if (!confirm('全タブの入力内容をすべて削除します。この操作は元に戻せません。よろしいですか？')) return;
+    async function confirmDeleteAll() {
+      const ok1 = await showConfirm('全タブの入力内容をすべて削除します。この操作は元に戻せません。よろしいですか？', '削除する');
+      if (!ok1) return;
       if (App.hasUnsavedChanges) {
-        if (!confirm('まだ保存（Excel出力）していない入力内容があります。保存せずに削除してもよろしいですか？')) return;
+        const ok2 = await showConfirm('まだ保存（Excel出力）していない入力内容があります。保存せずに削除してもよろしいですか？', '削除する');
+        if (!ok2) return;
       }
       performDeleteAll();
     }
 
     function performDeleteAll() {
+      createJsonBackupFile(); // 削除前の内容を最後の保険として自動でバックアップしておく
       Object.keys(TAB_DEFS).forEach(tabId => {
         const key = TAB_DEFS[tabId].storageKey;
         localStorage.removeItem(key);
@@ -2168,7 +2196,7 @@ self.addEventListener('fetch', function(e) {
       buildLayoutForActiveTab();
       renderAllRows();
       App.hasUnsavedChanges = false;
-      showToast('全データを削除しました');
+      showToast('バックアップを保存し、全データを削除しました');
     }
 
     /* ── 案件名表示（ドラム領域左上のバッジ。タップして編集） ──
@@ -2224,6 +2252,31 @@ self.addEventListener('fetch', function(e) {
     function dismissRollingRestore() {
       App.possibleLostTabs = [];
       document.getElementById('restorePromptOverlay').classList.remove('show');
+    }
+
+    /* ── 汎用確認ダイアログ（ブラウザ標準のconfirm()は使わず、アプリ内デザインのポップアップで確認を取る） ──
+       await showConfirm('メッセージ') の形で使う。OKならtrue、キャンセルならfalseが返る。 */
+    function showConfirm(message, okLabel = '実行する', cancelLabel = 'キャンセル') {
+      return new Promise(resolve => {
+        const overlay   = document.getElementById('confirmOverlay');
+        const okBtn     = document.getElementById('confirmOkBtn');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+        document.getElementById('confirmMessage').textContent = message;
+        okBtn.textContent     = okLabel;
+        cancelBtn.textContent = cancelLabel;
+        overlay.classList.add('show');
+
+        function cleanup(result) {
+          overlay.classList.remove('show');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          resolve(result);
+        }
+        function onOk()     { cleanup(true); }
+        function onCancel() { cleanup(false); }
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+      });
     }
 
     /* ── Toast ── */
