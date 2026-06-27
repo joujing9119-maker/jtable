@@ -424,9 +424,9 @@
        保存（Excel出力）時のファイル名末尾に「案件名＋様」として付加される。 */
     .project-name-badge {
       position: absolute; top: 6px; left: 6px; z-index: 20;
-      max-width: 220px; padding: 4px 10px; border-radius: 8px;
+      max-width: 330px; padding: 6px 15px; border-radius: 12px;
       background: rgba(0,0,0,0.5); color: #fff;
-      font-size: 12px; font-weight: 700; white-space: nowrap;
+      font-size: 18px; font-weight: 700; white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis; cursor: pointer;
     }
     .project-name-badge.empty { font-weight: 400; color: rgba(255,255,255,0.75); }
@@ -555,7 +555,7 @@
     <div class="header">
       <div class="header-top">
         <h1>調査表アプリ</h1>
-        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.44</div>
+        <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.46</div>
         <div class="tab-bar" id="tabBar">
           <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
           <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -687,7 +687,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.44";
+      const CACHE_NAME = "jtable-v0.46";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -2117,14 +2117,16 @@ self.addEventListener('fetch', function(e) {
           { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
         );
         downloadBlob(blob, fileName);
-        createJsonBackupFile(); // Excel出力と同時に、JSON形式のバックアップも自動で残しておく
+        // ブラウザが「同時に複数ファイルがダウンロードされた」と判定してブロックすることがあるため、
+        // JSON バックアップの方は少し時間をずらしてダウンロードを開始する
+        setTimeout(createJsonBackupFile, 800);
         showToast('Excelとバックアップを保存しました');
         clearAllTempOptions(); // 出力成功時、自由入力による一時選択肢を全タブ・全列分まとめて消去する
         App.hasUnsavedChanges = false; // 保存済みになったので、全削除時の追加確認の判定をリセットする
       } catch {
         try {
           XLSX.writeFile(wb, fileName);
-          createJsonBackupFile();
+          setTimeout(createJsonBackupFile, 800);
           showToast('Excelとバックアップを保存しました');
           clearAllTempOptions();
           App.hasUnsavedChanges = false;
@@ -2173,7 +2175,7 @@ self.addEventListener('fetch', function(e) {
        ヘッダーの「🗑 全削除」ボタンから呼び出す。元に戻せない操作のため、必ず確認を取る。
        さらに「保存（Excel出力）」がまだ行われていない入力内容がある場合は、追加でもう一度確認する。 */
     async function confirmDeleteAll() {
-      const ok1 = await showConfirm('全タブの入力内容をすべて削除します。この操作は元に戻せません。よろしいですか？', '削除する');
+      const ok1 = await showConfirm('削除する前にJSONバックアップファイルを自動で保存します。全タブの入力内容をすべて削除します。この操作は元に戻せません。よろしいですか？', '削除する');
       if (!ok1) return;
       if (App.hasUnsavedChanges) {
         const ok2 = await showConfirm('まだ保存（Excel出力）していない入力内容があります。保存せずに削除してもよろしいですか？', '削除する');
