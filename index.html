@@ -243,7 +243,7 @@
     }
     .table-header-wrapper::-webkit-scrollbar { display: none; }
     .table-header-cell {
-      padding: 8px 4px; font-size: 15px; font-weight: 700;
+      padding: 8px 4px; font-size: 19px; font-weight: 700;
       text-align: center; color: var(--th-text);
       border-right: 1px solid var(--card-border); white-space: nowrap;
     }
@@ -308,7 +308,9 @@
       padding: 0 8px; gap: 4px; overflow: hidden;
     }
     .panel-trigger .trigger-text { flex: 1; overflow: hidden; text-overflow: ellipsis; text-align: center; white-space: nowrap; }
-    .panel-trigger .trigger-arrow { font-size: 0.65em; flex-shrink: 0; color: var(--th-text); }
+    .panel-trigger .trigger-text.empty { font-weight: 500; color: var(--text-sub); }
+    .panel-trigger .trigger-arrow,
+    .jokyo-panel-trigger .trigger-arrow { font-size: 0.65em; flex-shrink: 0; color: var(--th-text); }
 
     /* ── 選択パネル（フルハイト） ── */
     .select-panel {
@@ -364,9 +366,9 @@
       background: var(--input-bg); border: 2px solid var(--input-border);
       border-radius: 8px; color: var(--text-main); cursor: pointer;
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 6px; overflow: hidden; font-size: 1em;
+      padding: 0 6px; gap: 4px; overflow: hidden; font-size: 1em; font-weight: 600;
     }
-    .jokyo-panel-trigger .trigger-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; text-align: center; }
+    .jokyo-panel-trigger .trigger-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
     .jokyo-panel-trigger .trigger-text.empty { font-weight: 500; color: var(--text-sub); }
     .jokyo-nums-stack { display: flex; flex-direction: column; gap: 3px; flex: 1; height: 100%; }
     .num-input-group { display: flex; align-items: center; gap: 2px; flex: 1; min-height: 0; }
@@ -403,8 +405,9 @@
 
     /* ── ナビエリア ── */
     .nav-area { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 2px; flex-shrink: 0; }
-    .nav-buttons { display: flex; flex-direction: column; gap: 10px; }
-    .nav-btn { width: 36px; height: 80px; border: none; border-radius: 10px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6c63ff 0%, #5a52d5 100%); color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    /* 上4つのボタン（side-toolbar）とのグループ分けを示すため、ボタン1つ分（60px）のスペースを空ける */
+    .nav-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 60px; }
+    .nav-btn { width: 60px; height: 56px; border: none; border-radius: 14px; font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6c63ff 0%, #5a52d5 100%); color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
     .nav-btn:disabled { opacity: 0.3; }
     .row-info-side { font-size: 11px; font-weight: 700; color: var(--text-sub); text-align: center; white-space: nowrap; flex-shrink: 0; }
 
@@ -563,7 +566,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.52</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.53</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -706,7 +709,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.52";
+      const CACHE_NAME = "jtable-v0.53";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1229,11 +1232,12 @@ self.addEventListener('fetch', function(e) {
     // 1列分の表示幅(px)を計算する。
     // - select型: パネル開閉ボタン（.panel-trigger、高さ=セルの78%・最小38px）の高さの2倍
     // - select_with_nums型: トリガーボタン（.jokyo-panel-trigger、高さ=セルの90%・最小40px）の高さの2倍を
-    //   triggerWとし、数値入力欄（.num-input-group。トリガーと同じ枠をnums件数で均等分割した高さ）は
+    //   triggerWとし、数値入力欄（.num-input-group。トリガーと同じ枠を均等分割した高さ）は
     //   「高さの2倍」と「実際に必要な最小幅（ラベル・±ボタン・表示枠・単位の合計）」の大きい方をnumRowWとして、
     //   triggerW + numRowW を合計する。
-    //   ※nums件数が2件（L/W）の場合、高さを2分割すると「高さ×2」だけでは±ボタン等が収まる幅に届かず、
-    //     隣の列にはみ出してしまうため、最小幅を下限として保証している。
+    //   ※高さの分割数は、実際のnums件数（タブによって1件/2件）ではなく、常に2件分割の前提で計算する。
+    //     タブによってnums件数が異なると、損傷の状況列の幅自体がタブごとに変わってしまい、列の位置が
+    //     タブ切り替えのたびに微妙にずれて使用感が悪くなるため、列幅自体は常に同じになるよう固定している。
     //   トリガー側の実際の幅は --jokyo-trigger-w としてCSS側にも反映し、見た目を一致させる。
     // - counter・text型: 従来どおりcolumns定義のwidthをそのまま使う（変更なし）
     function dynamicColumnWidth(col) {
@@ -1253,7 +1257,7 @@ self.addEventListener('fetch', function(e) {
           if (n.unit) px += n.unit.length * fontPx * 0.6 + 4; // 単位文字(mmなど)の概算幅
           return px;
         }));
-        const numRowH = innerH / col.nums.length;
+        const numRowH = innerH / 2; // タブ間で列幅を統一するため、件数に関わらず常に2分割で計算する
         const numRowW = Math.max(Math.round(numRowH * 2), Math.round(minNumRowW));
         document.documentElement.style.setProperty('--jokyo-trigger-w', `${triggerW}px`);
         return triggerW + numRowW + 5 + 8; // +5は.jokyo-cell-innerのgap、+8は.table-cellのpadding(4px×2)分
@@ -1356,7 +1360,7 @@ self.addEventListener('fetch', function(e) {
           return `
             ${copyBtnHtml(col.key, rowIndex)}
             <button class="panel-trigger" onclick="openPanel(event,'${col.key}',${rowIndex})">
-              <span class="trigger-text">${escHtml(d[col.key] || '—')}</span>
+              <span class="trigger-text${d[col.key] ? '' : ' empty'}">${escHtml(d[col.key] || '—')}</span>
               <span class="trigger-arrow">▼</span>
             </button>`;
         }
@@ -1374,7 +1378,7 @@ self.addEventListener('fetch', function(e) {
               ${copyBtnHtml(col.key, rowIndex)}
               <button class="jokyo-panel-trigger" onclick="openPanel(event,'${col.key}',${rowIndex})">
                 <span class="trigger-text${d[col.key] ? '' : ' empty'}">${escHtml(d[col.key] || '—')}</span>
-                <span class="trigger-arrow" style="font-size:10px;flex-shrink:0;">▼</span>
+                <span class="trigger-arrow">▼</span>
               </button>
               <div class="jokyo-nums-stack">${numsHtml}</div>
             </div>`;
@@ -1508,7 +1512,8 @@ self.addEventListener('fetch', function(e) {
     const IS_TOUCH_DEVICE = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
     function setupEvents() {
-      // タッチ: scroll-wrapperで受け取る（縦=JS制御、横=ネイティブpan-x）
+      // タッチ: scroll-wrapperで受け取る（縦=JS制御、横もJSでscrollLeftを直接操作。
+      // drum-viewportがtouch-action:noneのため、ネイティブのpan-xには委ねられない）
       scrollWrapper.addEventListener('touchstart',  handleDragStart, { passive: true });
       scrollWrapper.addEventListener('touchmove',   handleDragMove,  { passive: false });
       scrollWrapper.addEventListener('touchend',    handleDragEnd);
@@ -1606,8 +1611,11 @@ self.addEventListener('fetch', function(e) {
         applyRowPositions(Drum.dragOffset);
         Drum.lastY = c.y; Drum.lastTime = now;
       } else {
-        // 横スクロール: タッチはネイティブpan-x、マウスのみJS制御
-        if (!e.touches) scrollWrapper.scrollLeft -= (c.x - Drum.lastScrollX);
+        // 横スクロール: drum-viewportがtouch-action:noneのため、その内側（実際にタッチする行セル）では
+        // ブラウザのネイティブpan-xが効かない（touch-actionの有効値は祖先との交差で決まるため）。
+        // そのため、タッチ・マウスどちらもJSで直接scrollLeftを操作する。
+        if (e.cancelable) e.preventDefault();
+        scrollWrapper.scrollLeft -= (c.x - Drum.lastScrollX);
         Drum.lastScrollX = c.x;
       }
     }
