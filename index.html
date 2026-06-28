@@ -243,8 +243,9 @@
     }
     .table-header-wrapper::-webkit-scrollbar { display: none; }
     .table-header-cell {
-      padding: 8px 4px; font-size: 19px; font-weight: 700;
-      text-align: center; color: var(--th-text);
+      height: 36px; display: flex; align-items: center; justify-content: center;
+      padding: 0 4px; font-size: 22px; font-weight: 700; line-height: 1;
+      color: var(--th-text);
       border-right: 1px solid var(--card-border); white-space: nowrap;
     }
     .table-header-cell:last-child { border-right: none; }
@@ -264,12 +265,16 @@
     .drum-viewport { position: relative; height: 100%; touch-action: none; overscroll-behavior: none; min-width: var(--grid-min-width, 1570px); }
     .drum-container { position: absolute; inset: 0; }
 
-    /* ── 行（高さ・文字サイズはJSで動的セット） ── */
+    /* ── 行（高さ・文字サイズはJSで動的セット） ──
+       transform-originをleftにしているのは、中心基準(center)だと行全体の幅がタブによって異なる場合
+       （列構成の違いで横幅が変わるため）、scale()で縮小したときの左端の移動量もタブごとに変わってしまい、
+       タブ切り替えのたびに行の左端の位置がずれて見えてしまうため。左端基準にすることで、
+       縦のドラムロール効果（遠近感）は保ちつつ、左端の位置は常に固定される。 */
     .table-row {
       position: absolute; left: 0; right: 0;
       display: grid;
       grid-template-columns: var(--grid-cols-row, 56px 155px 155px 155px 175px 380px 110px 1fr);
-      will-change: transform, opacity; transform-origin: center;
+      will-change: transform, opacity; transform-origin: left center;
       min-width: var(--grid-min-width, 1570px);
     }
     .table-cell {
@@ -566,7 +571,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.53</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.54</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -709,7 +714,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.53";
+      const CACHE_NAME = "jtable-v0.54";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
