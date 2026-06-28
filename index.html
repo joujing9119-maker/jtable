@@ -310,8 +310,10 @@
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 8px; gap: 4px; overflow: hidden;
     }
-    .panel-trigger .trigger-text { flex: 1; overflow: hidden; text-overflow: ellipsis; text-align: center; white-space: nowrap; }
-    .panel-trigger .trigger-text.empty { font-weight: 500; color: var(--text-sub); }
+    .panel-trigger .trigger-text,
+    .jokyo-panel-trigger .trigger-text { flex: 1; overflow: hidden; text-overflow: ellipsis; text-align: center; white-space: nowrap; }
+    .panel-trigger .trigger-text.empty,
+    .jokyo-panel-trigger .trigger-text.empty { font-weight: 500; color: var(--text-sub); }
     .panel-trigger .trigger-arrow,
     .jokyo-panel-trigger .trigger-arrow { font-size: 0.65em; flex-shrink: 0; color: var(--th-text); }
 
@@ -373,8 +375,6 @@
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 6px; gap: 4px; overflow: hidden; font-size: 1em; font-weight: 600;
     }
-    .jokyo-panel-trigger .trigger-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
-    .jokyo-panel-trigger .trigger-text.empty { font-weight: 500; color: var(--text-sub); }
     .jokyo-nums-stack { display: flex; flex-direction: column; gap: 3px; flex: 1; height: 100%; }
     .num-input-group { display: flex; align-items: center; gap: 3px; flex: 1; min-height: 0; }
     .num-label { flex: 0 0 1.6em; font-size: 0.7em; font-weight: 700; color: var(--th-text); text-align: center; white-space: nowrap; }
@@ -414,7 +414,9 @@
     .nav-area { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 2px; flex-shrink: 0; }
     /* 上4つのボタン（side-toolbar）とのグループ分けを示すため、ボタン1つ分（60px）のスペースを空ける */
     .nav-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 60px; }
-    .nav-btn { width: 60px; height: 56px; border: none; border-radius: 14px; font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6c63ff 0%, #5a52d5 100%); color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    .nav-btn { width: 60px; height: 56px; border: none; border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: linear-gradient(135deg, #6c63ff 0%, #5a52d5 100%); color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    .nav-btn .nav-btn-icon  { font-size: 22px; line-height: 1; }
+    .nav-btn .nav-btn-label { font-size: 10px; font-weight: 700; line-height: 1; white-space: nowrap; }
     .nav-btn:disabled { opacity: 0.3; }
     .row-info-side { font-size: 11px; font-weight: 700; color: var(--text-sub); text-align: center; white-space: nowrap; flex-shrink: 0; }
 
@@ -573,7 +575,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.57</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.60</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -608,8 +610,8 @@
         <button class="side-tool-btn export-btn" onclick="exportToExcel()"><span class="side-btn-icon">💾</span><span class="side-btn-label">保存</span></button>
       </div>
       <div class="nav-buttons">
-        <button class="nav-btn" id="btnUp"   onclick="jumpToFirstRow()">▲</button>
-        <button class="nav-btn" id="btnDown" onclick="jumpToLastRow()">▼</button>
+        <button class="nav-btn" id="btnUp"   onclick="jumpToFirstRow()"><span class="nav-btn-icon">▲</span><span class="nav-btn-label">1行目</span></button>
+        <button class="nav-btn" id="btnDown" onclick="jumpToLastFilledRow()"><span class="nav-btn-icon">▼</span><span class="nav-btn-label">入力末尾</span></button>
       </div>
       <div class="row-info-side" id="rowInfo">1/200</div>
     </div>
@@ -716,7 +718,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.57";
+      const CACHE_NAME = "jtable-v0.60";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1487,14 +1489,18 @@ self.addEventListener('fetch', function(e) {
     }
 
     function animateToRow(target) {
-      if (Drum.animationId) { cancelAnimationFrame(Drum.animationId); Drum.animationId = null; Drum.dragOffset = 0; }
+      // ドラッグを離した瞬間の表示位置（Drum.dragOffset）から滑らかにアニメーションをつなげる。
+      // 以前はここを必ず0から始めていたため、ドラッグを離した瞬間に一度「ドラッグ前の位置」へ
+      // 戻ってから目的の行へ動き出すように見えてしまっていた（ガチャリと吸い付く感触が失われていた）。
+      const startOff = Drum.dragOffset;
+      if (Drum.animationId) cancelAnimationFrame(Drum.animationId);
       target = Math.max(0, Math.min(CONST.TOTAL_ROWS - 1, target));
       const targetOff = (target - Drum.currentRow) * Drum.rowHeight;
       const t0 = performance.now();
       function step(now) {
         const t    = Math.min((now - t0) / CONST.ANIM_DURATION, 1);
         const ease = 1 - Math.pow(1 - t, 3);
-        applyRowPositions(targetOff * ease);
+        applyRowPositions(startOff + (targetOff - startOff) * ease);
         if (t < 1) {
           Drum.animationId = requestAnimationFrame(step);
         } else {
@@ -1658,9 +1664,20 @@ self.addEventListener('fetch', function(e) {
       animateToRow(Drum.targetRow);
     }
 
-    // 右側ツールバーの▼ボタン：最終行（CONST.TOTAL_ROWS行目）へジャンプする
-    function jumpToLastRow() {
-      Drum.targetRow = CONST.TOTAL_ROWS - 1;
+    // 行に何か入力があるかどうかを判定する（isZeroNumと同じ「空」の基準で全フィールドを見る。
+    // _autoFillSuppress_* のような内部メタフラグは対象外）
+    function rowHasData(row) {
+      return Object.keys(row).some(k => !k.startsWith('_autoFillSuppress_') && !isZeroNum(row[k]));
+    }
+
+    // 右側ツールバーの▼ボタン：何らかの入力がある一番下の行へジャンプする（無ければ1行目）
+    function jumpToLastFilledRow() {
+      const data = getData();
+      let target = 0;
+      for (let i = data.length - 1; i >= 0; i--) {
+        if (rowHasData(data[i])) { target = i; break; }
+      }
+      Drum.targetRow = target;
       animateToRow(Drum.targetRow);
     }
 
