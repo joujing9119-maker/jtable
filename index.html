@@ -575,7 +575,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.60</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.61</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -718,7 +718,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.60";
+      const CACHE_NAME = "jtable-v0.61";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1242,11 +1242,10 @@ self.addEventListener('fetch', function(e) {
     // - select型: パネル開閉ボタン（.panel-trigger、高さ=セルの78%・最小38px）の高さの2倍
     // - select_with_nums型: トリガーボタン（.jokyo-panel-trigger、高さ=セルの78%・最小38px。他の選択列と
     //   揃えている）の高さの2倍をtriggerWとし、数値入力欄（.num-input-group。トリガーと同じ枠を
-    //   均等分割した高さ）は「高さの2倍」と「実際に必要な最小幅（ラベル・±ボタン・表示枠・単位の合計）」の
-    //   大きい方をnumRowWとして、triggerW + numRowW を合計する。
-    //   ※高さの分割数は、実際のnums件数（タブによって1件/2件）ではなく、常に2件分割の前提で計算する。
-    //     タブによってnums件数が異なると、損傷の状況列の幅自体がタブごとに変わってしまい、列の位置が
-    //     タブ切り替えのたびに微妙にずれて使用感が悪くなるため、列幅自体は常に同じになるよう固定している。
+    //   均等分割した高さ）は「高さの2倍」と「最小限必要な幅」の大きい方をnumRowWとして、
+    //   triggerW + numRowW を合計する。
+    //   ※高さの分割数は常に2分割固定、minNumRowWも全タブ共通の固定値で計算する（下記参照）。
+    //     これにより、すべてのタブで損傷の状況列の幅が一致し、タブ切り替え時に列の位置がずれない。
     //   トリガー側の実際の幅は --jokyo-trigger-w としてCSS側にも反映し、見た目を一致させる。
     // - counter・text型: 従来どおりcolumns定義のwidthをそのまま使う（変更なし）
     function dynamicColumnWidth(col) {
@@ -1258,14 +1257,12 @@ self.addEventListener('fetch', function(e) {
         const innerH   = Math.max(38, Drum.rowHeight * 0.78); // .jokyo-cell-innerと同じ式
         const triggerW = Math.round(innerH * 2);
         const fontPx   = Math.max(11, Math.min(26, Drum.rowHeight * 0.185)); // calcFontSizeと同じ式
-        // num-input-group 1行あたりの最小限必要な幅（label + ±ボタン + 表示枠の最小幅 + 単位文字）
-        const minNumRowW = Math.max(...col.nums.map(n => {
-          let em = 2 + 2 + 2.6;     // ±ボタン(2em×2) + 表示枠の最小幅(2.6em) ※.num-step-btn/.num-displayと同じ値
-          if (n.label) em += 1.6;   // ラベル(L/Wなど) ※.num-labelと同じ値
-          let px = em * fontPx + 12; // +12はgap(3px)×4箇所分の概算
-          if (n.unit) px += n.unit.length * fontPx * 0.6 + 4; // 単位文字(mmなど)の概算幅
-          return px;
-        }));
+        // minNumRowW は全タブ共通の固定値で計算する。
+        // タブごとに実際のnums構成（ラベルあり/なし・単位あり/なし）で計算すると、建具①②・傾斜①②と
+        // 内部①②・外部タブとで列幅が変わってしまう。高さ分割数の「常に2分割固定」と同じ理由で、
+        // ラベルあり・単位なしの内部/外部タブと同じ標準構成を基準にして全タブを揃えている。
+        const em = 2 + 2 + 2.6 + 1.6; // ±ボタン(2em×2) + 表示枠の最小幅(2.6em) + ラベル(1.6em) ※.num-step-btn/.num-display/.num-labelと同じ値
+        const minNumRowW = em * fontPx + 12; // +12はgap(3px)×4箇所分の概算
         const numRowH = innerH / 2; // タブ間で列幅を統一するため、件数に関わらず常に2分割で計算する
         const numRowW = Math.max(Math.round(numRowH * 2), Math.round(minNumRowW));
         document.documentElement.style.setProperty('--jokyo-trigger-w', `${triggerW}px`);
