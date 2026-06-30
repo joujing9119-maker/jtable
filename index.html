@@ -375,8 +375,8 @@
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 6px; gap: 4px; overflow: hidden; font-size: 1em; font-weight: 600;
     }
-    .jokyo-nums-stack { display: flex; flex-direction: column; gap: 3px; flex: 1; height: 100%; }
-    .num-input-group { display: flex; align-items: center; gap: 3px; flex: 1; min-height: 0; }
+    .jokyo-nums-stack { display: flex; flex-direction: column; gap: 3px; flex: 1; height: 100%; justify-content: center; }
+    .num-input-group { display: flex; align-items: center; gap: 3px; flex: 0 1 calc(50% - 1.5px); min-height: 0; }
     .num-label { flex: 0 0 1.6em; font-size: 0.7em; font-weight: 700; color: var(--th-text); text-align: center; white-space: nowrap; }
     .num-unit  { flex: 0 0 auto; font-size: 0.75em; font-weight: 700; color: var(--th-text); white-space: nowrap; padding-left: 2px; }
     .num-step-btn { flex: 0 0 2em; height: 100%; border-radius: 6px; border: none; font-size: 1em; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -575,7 +575,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.62</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.63</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -718,7 +718,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.62";
+      const CACHE_NAME = "jtable-v0.63";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
