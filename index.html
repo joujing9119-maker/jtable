@@ -575,7 +575,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.63</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.64</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -718,7 +718,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.63";
+      const CACHE_NAME = "jtable-v0.64";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -949,8 +949,10 @@ self.addEventListener('fetch', function(e) {
     }
 
 
-    // タブ専用の選択肢（TAB_OPTIONS[tabId]）があればそれを使い、なければ外部タブの選択肢を既定値として使う
-    const optionsFor = (tabId, colKey) => (TAB_OPTIONS[tabId] || TAB_OPTIONS.gaibusonsho)[colKey];
+    // タブ専用の選択肢（TAB_OPTIONS[tabId]）があればそれを使い、なければ外部タブの選択肢を既定値として使う。
+    // 該当タブにそのcolKeyが存在しない場合（例: 建具①②・傾斜①②のshiage）はundefinedを返す。
+    // omitで列ごと除外されるため実際に使われることはないが、明示的にundefinedを許容する設計。
+    const optionsFor = (tabId, colKey) => (TAB_OPTIONS[tabId] || TAB_OPTIONS.gaibusonsho)[colKey] ?? [];
 
     // タブIDから columns 配列一式を組み立てる（名称列は全タブ共通でhasNumSuffix:trueとする）
     function buildColumnsForTab(tabId) {
@@ -1525,7 +1527,7 @@ self.addEventListener('fetch', function(e) {
             const shouldBeActive = idx === Drum.currentRow;
             if (shouldBeActive !== row.classList.contains('active')) {
               row.classList.toggle('active', shouldBeActive);
-              row.innerHTML = createRowElement(idx).innerHTML;
+              row.innerHTML = rebuildRowHtml(idx);
               applyBtnSize(row);
             }
           });
@@ -1930,13 +1932,20 @@ self.addEventListener('fetch', function(e) {
       // クリアした列にautoFillの対象列が含まれていれば、明示的なクリアとして自動再セットを抑制する
       const rule = getActiveAutoFillRule();
       const autoFillOptions = (rule && fields.includes(rule.target)) ? { explicitClear: true } : undefined;
-      saveData(Panel.activeRow, autoFillOptions); closeAllPanels(); refreshActiveRow();
+      saveData(Panel.activeRow, autoFillOptions); refreshActiveRow(); closeAllPanels();
+    }
+
+    // 指定行のHTMLを再生成して返す（既存のDOM要素への .innerHTML 代入用）。
+    // createRowElement はDOM要素ごと新規生成するため、innerHTML取得だけが目的の場合は
+    // このヘルパーを使うことでダミー要素の生成・破棄コストを避けられる。
+    function rebuildRowHtml(rowIndex) {
+      return createRowElement(rowIndex).innerHTML;
     }
 
     function refreshActiveRow() {
       const el = document.getElementById('drumContainer').querySelector('.table-row.active');
       if (!el) return;
-      el.innerHTML = createRowElement(parseInt(el.dataset.rowIndex)).innerHTML;
+      el.innerHTML = rebuildRowHtml(parseInt(el.dataset.rowIndex));
       applyBtnSize(el);
     }
 
