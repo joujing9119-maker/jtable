@@ -575,7 +575,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.64</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.65</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -657,15 +657,15 @@
       <div class="numpad-label" id="numpadLabel">input</div>
       <div class="numpad-display" id="numpadDisplay">0</div>
       <div class="numpad-grid">
-        <button class="numpad-key" onclick="numpadInput('1')">1</button>
-        <button class="numpad-key" onclick="numpadInput('2')">2</button>
-        <button class="numpad-key" onclick="numpadInput('3')">3</button>
-        <button class="numpad-key" onclick="numpadInput('4')">4</button>
-        <button class="numpad-key" onclick="numpadInput('5')">5</button>
-        <button class="numpad-key" onclick="numpadInput('6')">6</button>
         <button class="numpad-key" onclick="numpadInput('7')">7</button>
         <button class="numpad-key" onclick="numpadInput('8')">8</button>
         <button class="numpad-key" onclick="numpadInput('9')">9</button>
+        <button class="numpad-key" onclick="numpadInput('4')">4</button>
+        <button class="numpad-key" onclick="numpadInput('5')">5</button>
+        <button class="numpad-key" onclick="numpadInput('6')">6</button>
+        <button class="numpad-key" onclick="numpadInput('1')">1</button>
+        <button class="numpad-key" onclick="numpadInput('2')">2</button>
+        <button class="numpad-key" onclick="numpadInput('3')">3</button>
         <button class="numpad-key backspace" onclick="numpadBackspace()">⌫</button>
         <button class="numpad-key" onclick="numpadInput('0')">0</button>
         <button class="numpad-key confirm" onclick="numpadConfirm()">OK</button>
@@ -718,7 +718,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.64";
+      const CACHE_NAME = "jtable-v0.65";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
