@@ -584,7 +584,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.69</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.76</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -730,7 +730,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.69";
+      const CACHE_NAME = "jtable-v0.76";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1029,6 +1029,7 @@ self.addEventListener('fetch', function(e) {
       EDGE_ZONE:     20,    // 画面端スワイプ判定エリアの幅(px)
       ANIM_DURATION: 220,   // 行送りアニメーションの時間(ms)
       NUMPAD_MAX_DIGITS: 4, // テンキー入力の最大桁数
+      UNDO_MAX_STEPS: 5,    // アンドゥ履歴の最大保持件数
     };
 
     /* ── アプリ全体の状態 ── */
@@ -1047,6 +1048,10 @@ self.addEventListener('fetch', function(e) {
       hasUnsavedChanges: false,
       // 案件名（任意）。入力すると「○○様」の形で画面左上に常時表示し、保存時のファイル名末尾にも付加する。
       projectName: '',
+      // アンドゥ履歴スタック（タブID → JSON文字列の配列、新しいものが末尾）。
+      // saveData のたびに保存前の状態を積む。最大 CONST.UNDO_MAX_STEPS 件保持し、超えた分は古い方から捨てる。
+      // ページリロードでリセットされる（localStorageには保存しない）。
+      undoStack: {},
     };
 
     // 現在のタブのデータ配列・保存処理（頻出のため関数化）
@@ -1054,54 +1059,66 @@ self.addEventListener('fetch', function(e) {
     const getData  = () => App.tabDataCache[App.activeTabId];
     function saveData(rowIndex, autoFillOptions) {
       if (rowIndex !== undefined && rowIndex !== null) applyAutoFillRule(getData()[rowIndex], autoFillOptions);
-      const key = TAB_DEFS[App.activeTabId].storageKey;
-      // 保存中の不具合・データ破損対策のローリングバックアップ：
-      // 上書きする前の内容（直前の保存内容）を別キーに退避しておく。
-      // この _bak が「1つ戻す」ボタンの戻り先にもなる（アクティブタブ限定）。
-      // 退避前の内容が壊れている（JSON.parseできない）場合は、それより古い正常なバックアップを残すため上書きしない。
+      const tabId = App.activeTabId;
+      const key = TAB_DEFS[tabId].storageKey;
+
+      // アンドゥ用スタックに現在の状態（上書き前）を積む（最大 CONST.UNDO_MAX_STEPS 件）。
+      // スタックはメモリ上のみ（リロードでリセット）。
       const prevRaw = localStorage.getItem(key);
+      if (prevRaw) {
+        if (!App.undoStack[tabId]) App.undoStack[tabId] = [];
+        App.undoStack[tabId].push(prevRaw);
+        if (App.undoStack[tabId].length > CONST.UNDO_MAX_STEPS)
+          App.undoStack[tabId].shift(); // 古い方から捨てる
+      }
+
+      // 破損対策のローリングバックアップ（_bak）：アンドゥとは独立して引き続き維持する。
+      // 退避前の内容が壊れている場合は上書きしない。
       if (prevRaw) {
         try { JSON.parse(prevRaw); localStorage.setItem(key + '_bak', prevRaw); } catch (e) { /* 壊れていた場合は何もしない */ }
       }
       localStorage.setItem(key, JSON.stringify(getData()));
       App.hasUnsavedChanges = true;
-      updateTabBadge(App.activeTabId);
+      updateTabBadge(tabId);
       updateUndoBtn();
     }
 
-    // 「1つ戻す」ボタンの有効/無効を更新する。
-    // アクティブタブの _bak が存在する場合のみ有効にする。
+    // 「1つ戻す」ボタンの有効/無効とラベルを更新する。
+    // アクティブタブのアンドゥスタックの残り件数をボタンラベルに反映する。
     function updateUndoBtn() {
-      const key = TAB_DEFS[App.activeTabId].storageKey;
-      const hasBak = localStorage.getItem(key + '_bak') !== null;
+      const tabId = App.activeTabId;
+      const stack = App.undoStack[tabId] || [];
       const btn = document.getElementById('undoBtn');
-      if (btn) btn.disabled = !hasBak;
+      if (!btn) return;
+      btn.disabled = stack.length === 0;
+      const label = btn.querySelector('.side-btn-label');
+      if (label) label.textContent = stack.length > 0 ? `戻す ${stack.length}/${CONST.UNDO_MAX_STEPS}` : '1つ戻す';
     }
 
-    // アクティブタブを _bak の内容（直前の saveData 時点）に戻す。
-    // タブ全体のデータが対象（行単位ではなく、そのタブの全200行）。
+    // アクティブタブをアンドゥスタックの1つ前の状態に戻す。
+    // スタックから末尾（最新）を取り出してlocalStorageに書き戻す。
+    // 「戻す→さらに戻す」を繰り返しても、スタックが空になるまでは戻し続けられる。
     async function undoLastSave() {
-      const key = TAB_DEFS[App.activeTabId].storageKey;
-      const bak = localStorage.getItem(key + '_bak');
-      if (!bak) return;
-      const label = TAB_DEFS[App.activeTabId].label;
+      const tabId = App.activeTabId;
+      const stack = App.undoStack[tabId] || [];
+      if (stack.length === 0) return;
+      const label = TAB_DEFS[tabId].label;
       const ok = await showConfirm(
-        `「${label}」タブの入力内容を、直前の保存状態に戻します。現在の入力内容は失われます。よろしいですか？`,
+        `「${label}」タブの入力内容を1つ前の状態に戻します。現在の入力内容は失われます。よろしいですか？`,
         '戻す'
       );
       if (!ok) return;
-      // 現在の内容を _bak に上書きし、_bak の内容をメインキーに書き戻す（swap）。
-      // これにより「戻す→さらにもう1つ戻す」は _bak が上書きされるため1段階のみ。
-      const currentRaw = localStorage.getItem(key);
-      if (currentRaw) localStorage.setItem(key + '_bak', currentRaw);
-      localStorage.setItem(key, bak);
-      delete App.tabDataCache[App.activeTabId];
-      loadTabData(App.activeTabId);
-      updateTabBadge(App.activeTabId);
+      const key = TAB_DEFS[tabId].storageKey;
+      const restored = App.undoStack[tabId].pop();
+      localStorage.setItem(key, restored);
+      delete App.tabDataCache[tabId];
+      loadTabData(tabId);
+      updateTabBadge(tabId);
       buildLayoutForActiveTab();
       renderAllRows();
       updateUndoBtn();
-      showToast(`「${label}」を1つ前の状態に戻しました`);
+      const remaining = (App.undoStack[tabId] || []).length;
+      showToast(`「${label}」を1つ前の状態に戻しました（残り${remaining}回戻せます）`);
     }
 
     // ── タブの「入力あり」件数バッジ ──────────────────────────
@@ -1560,7 +1577,8 @@ self.addEventListener('fetch', function(e) {
       // ドラッグを離した瞬間の表示位置（Drum.dragOffset）から滑らかにアニメーションをつなげる。
       // 以前はここを必ず0から始めていたため、ドラッグを離した瞬間に一度「ドラッグ前の位置」へ
       // 戻ってから目的の行へ動き出すように見えてしまっていた（ガチャリと吸い付く感触が失われていた）。
-      const startOff = Drum.dragOffset;
+      const startOff  = Drum.dragOffset;
+      const fromRow   = Drum.currentRow; // アニメーション開始時点の行（行移動判定に使う）
       if (Drum.animationId) cancelAnimationFrame(Drum.animationId);
       target = Math.max(0, Math.min(CONST.TOTAL_ROWS - 1, target));
       const targetOff = (target - Drum.currentRow) * Drum.rowHeight;
@@ -1583,6 +1601,12 @@ self.addEventListener('fetch', function(e) {
             }
           });
           applyRowPositions(0); updateRowInfo(); Drum.animationId = null;
+          // 別の行へ移動した場合、スクロールが左端でなければ左端に戻す。
+          // 新しい行の入力は左から始まるため、スクロール位置をリセットして全列が見える状態にする。
+          // 同じ行へのタップ（fromRow === target）では発動しない。
+          if (target !== fromRow && scrollWrapper.scrollLeft > 0) {
+            scrollWrapper.scrollLeft = 0;
+          }
         }
       }
       Drum.animationId = requestAnimationFrame(step);
@@ -1639,14 +1663,9 @@ self.addEventListener('fetch', function(e) {
           if (!e.target.closest('input[type="text"]')) e.preventDefault();
         });
 
-        // ダブルタップでのズームを抑止（テキスト入力欄以外）
-        let lastTapTime = 0;
-        document.addEventListener('touchend', e => {
-          if (e.target.closest('input[type="text"]')) return;
-          const now = Date.now();
-          if (now - lastTapTime < 300) e.preventDefault();
-          lastTapTime = now;
-        }, { passive: false });
+        // ダブルタップズームは viewport の user-scalable=no と
+        // gesturestart/change/end の preventDefault で抑止済みのため、
+        // ここでの touchend 介入は不要（むしろ連続タップを妨げるため削除）。
       }
     }
 
@@ -1973,6 +1992,33 @@ self.addEventListener('fetch', function(e) {
       const rule = getActiveAutoFillRule();
       const autoFillOptions = (rule && rule.target === type) ? { userSelected: true } : undefined;
       saveData(Panel.activeRow, autoFillOptions); refreshActiveRow(); closeAllPanels();
+      // 選択した列の次の列が画面内に収まるようスクロールする（DOM再構築後に実行）
+      requestAnimationFrame(() => scrollToNextColumn(type));
+    }
+
+    // 指定列の「次の列」が scrollWrapper の右端より外にはみ出している場合、
+    // その列の右端がちょうど見えるところまでスクロールする。
+    // 入力が右列へ進む流れを想定し、「選択した列」ではなく「次の列の右端」を基準にする。
+    // 次の列が存在しない（備考欄が最後）場合は現在の列の右端を基準にする。
+    // 入力したセルの幅だけ右にスクロールする。
+    // これにより「入力したセルがあった画面上の位置」に次のセルが移動してきて、
+    // 左から順に入力する際に手動スクロールが不要になる。
+    // すでに右端まで到達していてスクロール余地がない場合は何もしない。
+    function scrollToNextColumn(type) {
+      const columns = getColumns();
+      const idx = columns.findIndex(c => c.key === type);
+      if (idx === -1) return;
+      // 入力したセルの幅を取得（No.列が先頭にあるため +1 オフセット）
+      const activeRow = document.getElementById('drumContainer').querySelector('.table-row.active');
+      if (!activeRow) return;
+      const cells = activeRow.querySelectorAll('.table-cell');
+      const cell = cells[idx + 1]; // +1 は No.列分
+      if (!cell) return;
+      const cellWidth = cell.getBoundingClientRect().width;
+      // すでに右端まで行っている場合はスクロールしない
+      const maxScrollLeft = scrollWrapper.scrollWidth - scrollWrapper.clientWidth;
+      if (scrollWrapper.scrollLeft >= maxScrollLeft) return;
+      scrollWrapper.scrollLeft = Math.min(scrollWrapper.scrollLeft + cellWidth, maxScrollLeft);
     }
 
     function clearFieldFromPanel(...fields) {
@@ -2128,14 +2174,24 @@ self.addEventListener('fetch', function(e) {
       return `${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}_${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
     }
 
-    // Blobをファイルとしてダウンロードする。iOSではdownload属性を付与しない（Safariが無視するため）。
+    // Blobをファイルとしてダウンロードする。
+    // iOSのSafariは <a download="..."> 属性を無視するため、MIMEタイプを工夫して対応する。
+    //   - xlsx: application/octet-stream にすることで「Unknown.xlsx」ではなく正しいファイル名で保存できる
+    //   - json: text/plain にすることでインライン表示を避け「Filesアプリに保存」等の選択肢が出る
+    //     （createJsonBackupFile 側で呼び出し前にMIMEタイプを変換済み）
+    // 非iOS環境では元のMIMEタイプ・download属性をそのまま使う。
     // revokeObjectURLまでの待機時間もiOSのみ長めにしている（ダウンロード処理がblob URLを
     // 参照し終えるまでに時間がかかるため、早く解放すると失敗することがある）。
     function downloadBlob(blob, fileName) {
-      const url = URL.createObjectURL(blob);
+      // iOSでxlsxを渡す場合、MIMEタイプをapplication/octet-streamに変換してファイル名を保持する
+      const iosBlob = (IS_IOS_DEVICE && blob.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        ? new Blob([blob], { type: 'application/octet-stream' })
+        : blob;
+      const url = URL.createObjectURL(iosBlob);
       const a = document.createElement('a');
       a.href = url;
       if (!IS_IOS_DEVICE) a.download = fileName;
+      else a.download = fileName; // iOSでもdownload属性をセットしておく（将来のSafari対応への布石）
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), IS_IOS_DEVICE ? 10000 : 5000);
     }
@@ -2188,7 +2244,12 @@ self.addEventListener('fetch', function(e) {
         const raw = localStorage.getItem(TAB_DEFS[tabId].storageKey);
         payload.tabs[tabId] = raw ? JSON.parse(raw) : [];
       });
-      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      const json = JSON.stringify(payload);
+      // iOSのSafariは application/json をブラウザ上でテキスト表示してしまう（ファイル保存にならない）。
+      // text/plain にすることで「Filesアプリに保存」等の選択肢が出るようになる。
+      // 非iOS環境では application/json のままダウンロードする。
+      const mimeType = IS_IOS_DEVICE ? 'text/plain' : 'application/json';
+      const blob = new Blob([json], { type: mimeType });
       downloadBlob(blob, `jtable_backup_${genTimestamp()}.json`);
     }
 
@@ -2338,10 +2399,12 @@ self.addEventListener('fetch', function(e) {
         delete App.tabDataCache[tabId];
       });
       clearAllTempOptions();
+      App.undoStack = {}; // アンドゥ履歴も全クリア（全削除後に「戻す」で復活しないよう）
       Object.keys(TAB_DEFS).forEach(loadTabData);
       updateAllTabBadges();
       buildLayoutForActiveTab();
       renderAllRows();
+      updateUndoBtn();
       App.hasUnsavedChanges = false;
       showToast('バックアップを保存し、全データを削除しました');
     }
