@@ -153,11 +153,11 @@
     /* 「入力あり」件数バッジ（タブ右上）。既存の＋ボタン等で使っている色（#20a39e系）を流用し、
        タブ選択中を示す青系のアクセント（--tab-active-border）とは別の色にして、見分けやすくしている。 */
     .tab-data-badge {
-      position: absolute; top: -6px; right: -4px; z-index: 4;
-      min-width: 16px; height: 16px; padding: 0 4px;
+      position: absolute; top: -7px; right: -5px; z-index: 4;
+      min-width: 19px; height: 19px; padding: 0 5px;
       display: none; align-items: center; justify-content: center;
-      font-size: 10px; font-weight: 700; line-height: 1; color: #fff;
-      background: #20a39e; border-radius: 9px;
+      font-size: 12px; font-weight: 700; line-height: 1; color: #fff;
+      background: #20a39e; border-radius: 10px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.3);
       pointer-events: none;
     }
@@ -192,6 +192,11 @@
       box-shadow: 0 4px 15px rgba(231,111,81,0.3);
     }
     .undo-btn:disabled { opacity: 0.35; }
+    .redo-btn {
+      background: linear-gradient(135deg, #2ec4b6 0%, #20a39e 100%);
+      box-shadow: 0 4px 15px rgba(46,196,182,0.3);
+    }
+    .redo-btn:disabled { opacity: 0.35; }
     .json-backup-btn {
       background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
@@ -392,7 +397,7 @@
     .num-step-btn.minus { background: linear-gradient(135deg, #e63946 0%, #c1121f 100%); color: #fff; }
     .num-step-btn.plus  { background: linear-gradient(135deg, #2ec4b6 0%, #20a39e 100%); color: #fff; }
     .num-step-btn:active { transform: scale(0.9); }
-    .num-display { flex: 0 0 var(--num-display-w, 2.6em); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1em; font-weight: 700; color: var(--text-main); background: var(--input-bg); border: 2px solid #0077b6; border-radius: 6px; cursor: pointer; }
+    .num-display { flex: 0 0 var(--num-display-w, 4.2em); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1em; font-weight: 700; color: var(--text-main); background: var(--input-bg); border: 2px solid #0077b6; border-radius: 6px; cursor: pointer; }
 
     /* ── 損傷の状況（非アクティブ行）── */
     .jokyo-inactive { display: flex; width: 100%; height: 86%; background: var(--inactive-val-bg); border: 1px solid var(--inactive-val-border); border-radius: 8px; overflow: hidden; }
@@ -584,7 +589,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.76</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.82</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -618,6 +623,7 @@
         <button class="side-tool-btn backup-btn" onclick="triggerImportFile()"><span class="side-btn-icon">📂</span><span class="side-btn-label">開く</span></button>
         <button class="side-tool-btn export-btn" onclick="exportToExcel()"><span class="side-btn-icon">💾</span><span class="side-btn-label">Excel出力</span></button>
         <button class="side-tool-btn undo-btn" id="undoBtn" onclick="undoLastSave()" disabled><span class="side-btn-icon">↩</span><span class="side-btn-label">1つ戻す</span></button>
+        <button class="side-tool-btn redo-btn" id="redoBtn" onclick="redoLastUndo()" disabled><span class="side-btn-icon">↪</span><span class="side-btn-label">1つ進む</span></button>
         <button class="side-tool-btn json-backup-btn" onclick="createJsonBackupFile()"><span class="side-btn-icon">📤</span><span class="side-btn-label">一時保存</span></button>
       </div>
       <div class="nav-buttons">
@@ -730,7 +736,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.76";
+      const CACHE_NAME = "jtable-v0.82";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1029,7 +1035,6 @@ self.addEventListener('fetch', function(e) {
       EDGE_ZONE:     20,    // 画面端スワイプ判定エリアの幅(px)
       ANIM_DURATION: 220,   // 行送りアニメーションの時間(ms)
       NUMPAD_MAX_DIGITS: 4, // テンキー入力の最大桁数
-      UNDO_MAX_STEPS: 5,    // アンドゥ履歴の最大保持件数
     };
 
     /* ── アプリ全体の状態 ── */
@@ -1049,9 +1054,15 @@ self.addEventListener('fetch', function(e) {
       // 案件名（任意）。入力すると「○○様」の形で画面左上に常時表示し、保存時のファイル名末尾にも付加する。
       projectName: '',
       // アンドゥ履歴スタック（タブID → JSON文字列の配列、新しいものが末尾）。
-      // saveData のたびに保存前の状態を積む。最大 CONST.UNDO_MAX_STEPS 件保持し、超えた分は古い方から捨てる。
+      // saveData のたびに保存前の状態を積む。件数の上限はなし（無制限に遡れる）。
       // ページリロードでリセットされる（localStorageには保存しない）。
       undoStack: {},
+      // やり直し（redo）履歴スタック（タブID → JSON文字列の配列、新しいものが末尾）。
+      // undoLastSave()で「戻す」たびに、戻す前の状態をここへ積む。redoLastUndo()で
+      // 末尾から取り出して復元する。saveData()で新しい編集が行われるとクリアされる
+      // （一般的なUndo/Redoの挙動と同じく、新しい編集をした時点で「やり直し」は無効になる）。
+      // undoStackと同様、ページリロードでリセットされる。
+      redoStack: {},
     };
 
     // 現在のタブのデータ配列・保存処理（頻出のため関数化）
@@ -1062,15 +1073,17 @@ self.addEventListener('fetch', function(e) {
       const tabId = App.activeTabId;
       const key = TAB_DEFS[tabId].storageKey;
 
-      // アンドゥ用スタックに現在の状態（上書き前）を積む（最大 CONST.UNDO_MAX_STEPS 件）。
+      // アンドゥ用スタックに現在の状態（上書き前）を積む（件数の上限はなし）。
       // スタックはメモリ上のみ（リロードでリセット）。
       const prevRaw = localStorage.getItem(key);
       if (prevRaw) {
         if (!App.undoStack[tabId]) App.undoStack[tabId] = [];
         App.undoStack[tabId].push(prevRaw);
-        if (App.undoStack[tabId].length > CONST.UNDO_MAX_STEPS)
-          App.undoStack[tabId].shift(); // 古い方から捨てる
       }
+      // 新しい編集が行われた時点で「やり直し」履歴は無効になるため、クリアする
+      // （undoLastSave/redoLastUndo自体はsaveData()を経由せず直接localStorageを書き換えるため、
+      // ここでクリアされるのは実際にユーザーが値を編集した場合のみ）。
+      App.redoStack[tabId] = [];
 
       // 破損対策のローリングバックアップ（_bak）：アンドゥとは独立して引き続き維持する。
       // 退避前の内容が壊れている場合は上書きしない。
@@ -1080,35 +1093,51 @@ self.addEventListener('fetch', function(e) {
       localStorage.setItem(key, JSON.stringify(getData()));
       App.hasUnsavedChanges = true;
       updateTabBadge(tabId);
-      updateUndoBtn();
+      updateUndoRedoBtns();
     }
 
-    // 「1つ戻す」ボタンの有効/無効とラベルを更新する。
-    // アクティブタブのアンドゥスタックの残り件数をボタンラベルに反映する。
-    function updateUndoBtn() {
+    // 「1つ戻す」「1つ進む」ボタンの有効/無効とラベル（残り件数）を更新する。
+    // アクティブタブのアンドゥ／やり直し（1つ進む）スタックの件数をそれぞれのボタンラベルに反映する。
+    function updateUndoRedoBtns() {
       const tabId = App.activeTabId;
-      const stack = App.undoStack[tabId] || [];
-      const btn = document.getElementById('undoBtn');
-      if (!btn) return;
-      btn.disabled = stack.length === 0;
-      const label = btn.querySelector('.side-btn-label');
-      if (label) label.textContent = stack.length > 0 ? `戻す ${stack.length}/${CONST.UNDO_MAX_STEPS}` : '1つ戻す';
+      const undoStack = App.undoStack[tabId] || [];
+      const redoStack = App.redoStack[tabId] || [];
+
+      const undoBtn = document.getElementById('undoBtn');
+      if (undoBtn) {
+        undoBtn.disabled = undoStack.length === 0;
+        const label = undoBtn.querySelector('.side-btn-label');
+        if (label) label.textContent = undoStack.length > 0 ? `戻す ${undoStack.length}` : '1つ戻す';
+      }
+      const redoBtn = document.getElementById('redoBtn');
+      if (redoBtn) {
+        redoBtn.disabled = redoStack.length === 0;
+        const label = redoBtn.querySelector('.side-btn-label');
+        if (label) label.textContent = redoStack.length > 0 ? `進む ${redoStack.length}` : '1つ進む';
+      }
     }
 
     // アクティブタブをアンドゥスタックの1つ前の状態に戻す。
-    // スタックから末尾（最新）を取り出してlocalStorageに書き戻す。
-    // 「戻す→さらに戻す」を繰り返しても、スタックが空になるまでは戻し続けられる。
+    // スタックから末尾（最新）を取り出してlocalStorageに書き戻す。件数の上限はないため、
+    // 「戻す→さらに戻す」を繰り返しても、スタックが空になるまで戻し続けられる。
+    // 戻す前の状態はやり直し（redo）用スタックに積んでおき、redoLastUndo()で復元できるようにする。
     async function undoLastSave() {
       const tabId = App.activeTabId;
       const stack = App.undoStack[tabId] || [];
       if (stack.length === 0) return;
       const label = TAB_DEFS[tabId].label;
       const ok = await showConfirm(
-        `「${label}」タブの入力内容を1つ前の状態に戻します。現在の入力内容は失われます。よろしいですか？`,
+        `「${label}」タブの入力内容を1つ前の状態に戻します。現在の入力内容は失われます（「1つ進む」でこの操作前の状態に戻せます）。よろしいですか？`,
         '戻す'
       );
       if (!ok) return;
       const key = TAB_DEFS[tabId].storageKey;
+      // 戻す前の現在の内容を、やり直し（redo）用スタックへ積んでおく
+      const current = localStorage.getItem(key);
+      if (current !== null) {
+        if (!App.redoStack[tabId]) App.redoStack[tabId] = [];
+        App.redoStack[tabId].push(current);
+      }
       const restored = App.undoStack[tabId].pop();
       localStorage.setItem(key, restored);
       delete App.tabDataCache[tabId];
@@ -1116,9 +1145,40 @@ self.addEventListener('fetch', function(e) {
       updateTabBadge(tabId);
       buildLayoutForActiveTab();
       renderAllRows();
-      updateUndoBtn();
+      updateUndoRedoBtns();
       const remaining = (App.undoStack[tabId] || []).length;
       showToast(`「${label}」を1つ前の状態に戻しました（残り${remaining}回戻せます）`);
+    }
+
+    // 「戻す」で失った変更を復元する（1つ進む）。redoStackの末尾（直前に戻す前の状態）を取り出して復元する。
+    // 復元前の状態は改めてアンドゥ用スタックへ積むため、「1つ進む→戻す」を繰り返しても行き来できる。
+    async function redoLastUndo() {
+      const tabId = App.activeTabId;
+      const stack = App.redoStack[tabId] || [];
+      if (stack.length === 0) return;
+      const label = TAB_DEFS[tabId].label;
+      const ok = await showConfirm(
+        `「${label}」タブの入力内容を「戻す」前の状態に進めます。現在の入力内容は失われます。よろしいですか？`,
+        '進む'
+      );
+      if (!ok) return;
+      const key = TAB_DEFS[tabId].storageKey;
+      // 進める前の現在の内容を、アンドゥ用スタックへ積んでおく
+      const current = localStorage.getItem(key);
+      if (current !== null) {
+        if (!App.undoStack[tabId]) App.undoStack[tabId] = [];
+        App.undoStack[tabId].push(current);
+      }
+      const restored = App.redoStack[tabId].pop();
+      localStorage.setItem(key, restored);
+      delete App.tabDataCache[tabId];
+      loadTabData(tabId);
+      updateTabBadge(tabId);
+      buildLayoutForActiveTab();
+      renderAllRows();
+      updateUndoRedoBtns();
+      const remaining = (App.redoStack[tabId] || []).length;
+      showToast(`「${label}」を1つ先の状態に進めました（残り${remaining}回進められます）`);
     }
 
     // ── タブの「入力あり」件数バッジ ──────────────────────────
@@ -1172,6 +1232,40 @@ self.addEventListener('fetch', function(e) {
 
     // 横スクロール用ラッパー参照（setupEventsで初期化）
     const scrollWrapper = document.getElementById('tableScrollWrapper');
+
+    // 自動横スクロール（scrollToNextColumn・settleAtRowの左端リセット）のアニメーションID。
+    // 手動ドラッグ・ホイール操作など、ユーザー自身が横スクロールを始めた場合は
+    // cancelAutoHScroll()でこのアニメーションを止める（自動と手動が競合しないようにするため）。
+    let hScrollAnimId = null;
+
+    // scrollWrapperのscrollLeftを、瞬間移動（ワープ）ではなく滑らかなアニメーションで
+    // 目的の位置まで動かす。animateToRow（行送り）と同じイージング（ease-out cubic）を使い、
+    // 動きの質感を統一している。
+    function animateScrollLeft(targetLeft, duration = CONST.ANIM_DURATION) {
+      if (hScrollAnimId) cancelAnimationFrame(hScrollAnimId);
+      const startLeft = scrollWrapper.scrollLeft;
+      const diff = targetLeft - startLeft;
+      if (diff === 0) { hScrollAnimId = null; return; }
+      const t0 = performance.now();
+      function step(now) {
+        const t    = Math.min((now - t0) / duration, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+        scrollWrapper.scrollLeft = startLeft + diff * ease;
+        if (t < 1) {
+          hScrollAnimId = requestAnimationFrame(step);
+        } else {
+          scrollWrapper.scrollLeft = targetLeft;
+          hScrollAnimId = null;
+        }
+      }
+      hScrollAnimId = requestAnimationFrame(step);
+    }
+
+    // ユーザーが手動でスクロール操作（ドラッグ・ホイール）を始めた場合、進行中の自動横スクロール
+    // アニメーションを止める（自動スクロールが手動操作を上書きしてしまわないようにするため）。
+    function cancelAutoHScroll() {
+      if (hScrollAnimId) { cancelAnimationFrame(hScrollAnimId); hScrollAnimId = null; }
+    }
 
 
     /* ── データ管理 ──
@@ -1265,7 +1359,7 @@ self.addEventListener('fetch', function(e) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
       App.activeTabId = tabId;
       buildLayoutForActiveTab();
-      renderAllRows(); updateRowInfo(); updateUndoBtn();
+      renderAllRows(); updateRowInfo(); updateUndoRedoBtns();
     }
 
     /* ── レイアウト構築（columns定義から、列幅グリッド・ヘッダー・選択パネルを組み立てる） ──
@@ -1326,10 +1420,10 @@ self.addEventListener('fetch', function(e) {
       if (col.type === 'select_with_nums') {
         const innerH   = Math.max(38, Drum.rowHeight * 0.78); // .jokyo-cell-innerと同じ式
         const triggerW = Math.round(innerH * 2);
-        const fontPx   = Math.max(11, Math.min(26, Drum.rowHeight * 0.185)); // calcFontSizeと同じ式
+        const fontPx   = calcFontPx(); // calcFontSizeと同じ計算を共通関数化したものを参照
         // num-input-group 1行あたりの最小限必要な幅（label + ±ボタン + 表示枠の最小幅 + 単位文字）
         const minNumRowW = Math.max(...col.nums.map(n => {
-          let em = 2 + 2 + 2.6;     // ±ボタン(2em×2) + 表示枠の最小幅(2.6em) ※.num-step-btn/.num-displayと同じ値
+          let em = 2 + 2 + 4.2;     // ±ボタン(2em×2) + 表示枠の最小幅(4.2em、5桁分の余裕を持たせた値) ※.num-step-btn/.num-displayと同じ値
           if (n.label) em += 1.6;   // ラベル(L/Wなど) ※.num-labelと同じ値
           let px = em * fontPx + 12; // +12はgap(3px)×4箇所分の概算
           if (n.unit) px += n.unit.length * fontPx * 0.6 + 4; // 単位文字(mmなど)の概算幅
@@ -1344,11 +1438,11 @@ self.addEventListener('fetch', function(e) {
         // 内部/外部タブ（ラベルあり）より「—」ボックスが広くなってしまう（label分のspaceがdisplayに渡るため）。
         // ラベルあり・単位なしの標準構成（内部/外部タブ相当）のnumRowWを基準に固定値を計算し、
         // すべてのタブで同じ幅になるようにする。
-        const emStd = 2 + 2 + 2.6 + 1.6; // 標準構成の全em合計（±ボタン各2em + 表示枠2.6em + ラベル1.6em）
+        const emStd = 2 + 2 + 4.2 + 1.6; // 標準構成の全em合計（±ボタン各2em + 表示枠4.2em + ラベル1.6em）
         const numRowW_std = Math.max(Math.round(numRowH * 2), Math.round(emStd * fontPx + 12));
         const numDisplayW = Math.max(
           Math.round(numRowW_std - (1.6 + 2 + 2) * fontPx - 9), // ±ボタン+ラベル分を差し引き、gap3px×3=9px
-          Math.round(2.6 * fontPx)  // 最小幅(2.6em)を下限とする
+          Math.round(4.2 * fontPx)  // 最小幅(4.2em、5桁分の余裕を持たせた値)を下限とする
         );
         document.documentElement.style.setProperty('--num-display-w', `${numDisplayW}px`);
 
@@ -1416,8 +1510,15 @@ self.addEventListener('fetch', function(e) {
       });
     }
 
-    // Drum.rowHeight から文字サイズを計算
-    const calcFontSize = () => `${Math.max(11, Math.min(26, Drum.rowHeight * 0.185))}px`;
+    // Drum.rowHeight から文字サイズ(px, 数値)を計算する。
+    // 以前は上限を26pxに固定していたため、行の高さ（画面サイズ）が大きい端末では、
+    // セルの大きさに対して文字が相対的にかなり小さく見えてしまっていた（v0.78で上限を撤廃）。
+    // その後さらに「もっと大きく」という依頼があったため、行の高さに対する比率自体を
+    // 0.185→0.22に引き上げ、セルに対する文字の占める割合を大きくした
+    // （下限の11pxのみ、極端に行が低い場合の可読性維持のために残している）。
+    // dynamicColumnWidth()内の列幅計算もこの関数を参照しており、値がズレないよう一本化している。
+    const calcFontPx = () => Math.max(11, Drum.rowHeight * 0.22);
+    const calcFontSize = () => `${calcFontPx()}px`;
 
     // ↑同ボタンのサイズをDrum.rowHeight/3の正方形で設定（常にDrum.rowHeightを直参照）
     function applyBtnSize(rowEl) {
@@ -1573,12 +1674,38 @@ self.addEventListener('fetch', function(e) {
       });
     }
 
+    // アニメーションの最終処理（行の確定・アクティブ行の再構築・行送り時のスクロールリセット等）を
+    // 1箇所にまとめた共通処理。通常はanimateToRow内のrAFループが最後まで完了した時点（t===1）で呼ぶが、
+    // 途中で別の操作（新しいタップ・ドラッグの開始）によってアニメーションが中断された場合にも、
+    // 表示を中途半端な位置のまま放置しないよう、この関数で即座に目標行へ確定させる用途にも使う
+    // （handleDragStartから呼ばれる。詳しい経緯はHANDOVER_NOTES.md参照）。
+    function settleAtRow(target) {
+      const fromRow = Drum.currentRow;
+      Drum.currentRow = target; Drum.targetRow = target; Drum.dragOffset = 0;
+      document.getElementById('drumContainer').querySelectorAll('.table-row').forEach(row => {
+        const idx = parseInt(row.dataset.rowIndex);
+        const shouldBeActive = idx === Drum.currentRow;
+        if (shouldBeActive !== row.classList.contains('active')) {
+          row.classList.toggle('active', shouldBeActive);
+          row.innerHTML = rebuildRowHtml(idx);
+          applyBtnSize(row);
+        }
+      });
+      applyRowPositions(0); updateRowInfo();
+      // 別の行へ移動した場合、スクロールが左端でなければ左端に戻す。
+      // 新しい行の入力は左から始まるため、スクロール位置をリセットして全列が見える状態にする。
+      // 同じ行へのタップ（fromRow === target）では発動しない。
+      // ワープ（瞬間移動）ではなく、animateScrollLeft()で滑らかに戻す。
+      if (target !== fromRow && scrollWrapper.scrollLeft > 0) {
+        animateScrollLeft(0);
+      }
+    }
+
     function animateToRow(target) {
       // ドラッグを離した瞬間の表示位置（Drum.dragOffset）から滑らかにアニメーションをつなげる。
       // 以前はここを必ず0から始めていたため、ドラッグを離した瞬間に一度「ドラッグ前の位置」へ
       // 戻ってから目的の行へ動き出すように見えてしまっていた（ガチャリと吸い付く感触が失われていた）。
       const startOff  = Drum.dragOffset;
-      const fromRow   = Drum.currentRow; // アニメーション開始時点の行（行移動判定に使う）
       if (Drum.animationId) cancelAnimationFrame(Drum.animationId);
       target = Math.max(0, Math.min(CONST.TOTAL_ROWS - 1, target));
       const targetOff = (target - Drum.currentRow) * Drum.rowHeight;
@@ -1590,23 +1717,8 @@ self.addEventListener('fetch', function(e) {
         if (t < 1) {
           Drum.animationId = requestAnimationFrame(step);
         } else {
-          Drum.currentRow = target; Drum.targetRow = target; Drum.dragOffset = 0;
-          document.getElementById('drumContainer').querySelectorAll('.table-row').forEach(row => {
-            const idx = parseInt(row.dataset.rowIndex);
-            const shouldBeActive = idx === Drum.currentRow;
-            if (shouldBeActive !== row.classList.contains('active')) {
-              row.classList.toggle('active', shouldBeActive);
-              row.innerHTML = rebuildRowHtml(idx);
-              applyBtnSize(row);
-            }
-          });
-          applyRowPositions(0); updateRowInfo(); Drum.animationId = null;
-          // 別の行へ移動した場合、スクロールが左端でなければ左端に戻す。
-          // 新しい行の入力は左から始まるため、スクロール位置をリセットして全列が見える状態にする。
-          // 同じ行へのタップ（fromRow === target）では発動しない。
-          if (target !== fromRow && scrollWrapper.scrollLeft > 0) {
-            scrollWrapper.scrollLeft = 0;
-          }
+          Drum.animationId = null;
+          settleAtRow(target);
         }
       }
       Drum.animationId = requestAnimationFrame(step);
@@ -1643,6 +1755,7 @@ self.addEventListener('fetch', function(e) {
       scrollWrapper.addEventListener('wheel', e => {
         e.preventDefault();
         if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+          cancelAutoHScroll(); // 手動の横スクロールが自動アニメーションと競合しないよう止める
           scrollWrapper.scrollLeft += e.deltaX;
         } else if (e.deltaY !== 0) {
           navigateRow(e.deltaY > 0 ? 1 : -1);
@@ -1677,12 +1790,24 @@ self.addEventListener('fetch', function(e) {
     function handleDragStart(e) {
       if (e.target.closest('input, button')) return;
       const c = getCoords(e);
+      // 直前の行送りアニメーションがまだ完了していない場合、ここでcancelAnimationFrameするだけでは
+      // 表示がアニメーション途中の中途半端な位置のまま固まってしまうことがあった
+      // （後続のタップが横方向の動きと判定されると、行確定処理・横スクロール確定処理のどちらも
+      // 呼ばれずに終わるケースがあったため）。新しい操作を始める前に、必ずsettleAtRow()で
+      // 直前の目標行（Drum.targetRow）へ即座に確定させてから次の操作に入る。
+      if (Drum.animationId) {
+        cancelAnimationFrame(Drum.animationId);
+        Drum.animationId = null;
+        settleAtRow(Drum.targetRow);
+      }
+      // 自動横スクロールのアニメーション中にユーザーが新しい操作を始めた場合、
+      // 自動側のアニメーションが手動操作と競合しないよう止めておく
+      cancelAutoHScroll();
       Drum.isDragging = true; Drum.isVerticalDrag = null; Drum.tapMoved = false;
       Drum.startY = c.y; Drum.lastY = c.y; Drum.lastScrollX = c.x;
       Drum.lastTime = performance.now(); Drum.velocity = 0;
       // 画面の左右端（戻る/進むジェスチャー領域）から開始したドラッグかを記録
       Drum.isEdgeStart = (c.x <= CONST.EDGE_ZONE || c.x >= window.innerWidth - CONST.EDGE_ZONE);
-      if (Drum.animationId) { cancelAnimationFrame(Drum.animationId); Drum.animationId = null; }
     }
 
     function handleDragMove(e) {
@@ -2018,7 +2143,8 @@ self.addEventListener('fetch', function(e) {
       // すでに右端まで行っている場合はスクロールしない
       const maxScrollLeft = scrollWrapper.scrollWidth - scrollWrapper.clientWidth;
       if (scrollWrapper.scrollLeft >= maxScrollLeft) return;
-      scrollWrapper.scrollLeft = Math.min(scrollWrapper.scrollLeft + cellWidth, maxScrollLeft);
+      // ワープ（瞬間移動）ではなく、animateScrollLeft()で滑らかに動かす。
+      animateScrollLeft(Math.min(scrollWrapper.scrollLeft + cellWidth, maxScrollLeft));
     }
 
     function clearFieldFromPanel(...fields) {
@@ -2400,11 +2526,12 @@ self.addEventListener('fetch', function(e) {
       });
       clearAllTempOptions();
       App.undoStack = {}; // アンドゥ履歴も全クリア（全削除後に「戻す」で復活しないよう）
+      App.redoStack = {}; // やり直し履歴も同様に全クリア
       Object.keys(TAB_DEFS).forEach(loadTabData);
       updateAllTabBadges();
       buildLayoutForActiveTab();
       renderAllRows();
-      updateUndoBtn();
+      updateUndoRedoBtns();
       App.hasUnsavedChanges = false;
       showToast('バックアップを保存し、全データを削除しました');
     }
@@ -2550,7 +2677,7 @@ self.addEventListener('fetch', function(e) {
       updateColumnWidths(); // buildLayoutForActiveTab時点ではDrum.rowHeightが未確定のため、ここで正しい値で再計算する
       renderAllRows();
       Drum.targetRow = Drum.currentRow;
-      updateRowInfo(); updateUndoBtn();
+      updateRowInfo(); updateUndoRedoBtns();
       setupEvents();
       window.addEventListener('resize', handleResize);
       if (typeof ResizeObserver !== 'undefined')
