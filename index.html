@@ -589,7 +589,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.82</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.84</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -736,7 +736,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.82";
+      const CACHE_NAME = "jtable-v0.84";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1121,16 +1121,12 @@ self.addEventListener('fetch', function(e) {
     // スタックから末尾（最新）を取り出してlocalStorageに書き戻す。件数の上限はないため、
     // 「戻す→さらに戻す」を繰り返しても、スタックが空になるまで戻し続けられる。
     // 戻す前の状態はやり直し（redo）用スタックに積んでおき、redoLastUndo()で復元できるようにする。
-    async function undoLastSave() {
+    // ボタン一発で行き来できるよう、確認ダイアログは出さずに即実行する。
+    function undoLastSave() {
       const tabId = App.activeTabId;
       const stack = App.undoStack[tabId] || [];
       if (stack.length === 0) return;
       const label = TAB_DEFS[tabId].label;
-      const ok = await showConfirm(
-        `「${label}」タブの入力内容を1つ前の状態に戻します。現在の入力内容は失われます（「1つ進む」でこの操作前の状態に戻せます）。よろしいですか？`,
-        '戻す'
-      );
-      if (!ok) return;
       const key = TAB_DEFS[tabId].storageKey;
       // 戻す前の現在の内容を、やり直し（redo）用スタックへ積んでおく
       const current = localStorage.getItem(key);
@@ -1152,16 +1148,12 @@ self.addEventListener('fetch', function(e) {
 
     // 「戻す」で失った変更を復元する（1つ進む）。redoStackの末尾（直前に戻す前の状態）を取り出して復元する。
     // 復元前の状態は改めてアンドゥ用スタックへ積むため、「1つ進む→戻す」を繰り返しても行き来できる。
-    async function redoLastUndo() {
+    // undoLastSaveと同様、確認ダイアログは出さずに即実行する。
+    function redoLastUndo() {
       const tabId = App.activeTabId;
       const stack = App.redoStack[tabId] || [];
       if (stack.length === 0) return;
       const label = TAB_DEFS[tabId].label;
-      const ok = await showConfirm(
-        `「${label}」タブの入力内容を「戻す」前の状態に進めます。現在の入力内容は失われます。よろしいですか？`,
-        '進む'
-      );
-      if (!ok) return;
       const key = TAB_DEFS[tabId].storageKey;
       // 進める前の現在の内容を、アンドゥ用スタックへ積んでおく
       const current = localStorage.getItem(key);
@@ -1414,11 +1406,10 @@ self.addEventListener('fetch', function(e) {
     // - counter・text型: 従来どおりcolumns定義のwidthをそのまま使う（変更なし）
     function dynamicColumnWidth(col) {
       if (col.type === 'select') {
-        const triggerH = Math.max(38, Drum.rowHeight * 0.78);
-        return Math.round(triggerH * 2);
+        return Math.round(calcTriggerH() * 2);
       }
       if (col.type === 'select_with_nums') {
-        const innerH   = Math.max(38, Drum.rowHeight * 0.78); // .jokyo-cell-innerと同じ式
+        const innerH   = calcTriggerH(); // .jokyo-cell-innerと同じ式（.panel-triggerと共通化済み）
         const triggerW = Math.round(innerH * 2);
         const fontPx   = calcFontPx(); // calcFontSizeと同じ計算を共通関数化したものを参照
         // num-input-group 1行あたりの最小限必要な幅（label + ±ボタン + 表示枠の最小幅 + 単位文字）
@@ -1509,6 +1500,11 @@ self.addEventListener('fetch', function(e) {
         applyRowPositions(Drum.dragOffset);
       });
     }
+
+    // Drum.rowHeight から選択パネルのトリガー枠の高さ(px, 数値)を計算する。
+    // .panel-trigger（78%・最小38px）と.jokyo-cell-inner（同じく78%・最小38px、v0.53で統一済み）の
+    // 両方で同じ式を使っているため、dynamicColumnWidth()内の重複を避けるために共通関数化した。
+    const calcTriggerH = () => Math.max(38, Drum.rowHeight * 0.78);
 
     // Drum.rowHeight から文字サイズ(px, 数値)を計算する。
     // 以前は上限を26pxに固定していたため、行の高さ（画面サイズ）が大きい端末では、
@@ -2017,7 +2013,7 @@ self.addEventListener('fetch', function(e) {
 
     function positionPanelActionsZone() {
       const zone = document.getElementById('panelActionsZone');
-      const zoneWidth = parseFloat(getComputedStyle(zone).width) || 160;
+      const zoneWidth = parseFloat(getComputedStyle(zone).width) || CONST.PANEL_ACTIONS_WIDTH;
       const numZone = document.getElementById('meishoNumZone');
       const baseEl = numZone.classList.contains('open') ? numZone
                    : document.getElementById(PANEL_ID_OF(Panel.activeType));
@@ -2285,7 +2281,6 @@ self.addEventListener('fetch', function(e) {
     // oninputのたびにrefreshActiveRowを呼ぶと、1文字入力するたびにinput要素が
     // 再生成されてフォーカスが飛び、連続入力できなくなるため、この2段階構成にしている。
     function saveText(rowIndex, field, value) { getData()[rowIndex][field] = value; saveData(rowIndex); }
-    function updateText(rowIndex, field, value) { getData()[rowIndex][field] = value; saveData(rowIndex); refreshActiveRow(); }
 
 
     /* ── ファイルダウンロード共通処理（Excel出力・バックアップ書き出しで共通利用） ── */
