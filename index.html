@@ -424,10 +424,24 @@
     /* ── 備考 ── */
     .text-input { width: 100%; height: 78%; min-height: 36px; padding: 0 10px; background: var(--input-bg); border: 2px solid var(--input-border); border-radius: 8px; color: var(--text-main); font-size: 1em; -webkit-user-select: text; user-select: text; touch-action: manipulation; }
 
-    /* ── ナビエリア ── */
-    .nav-area { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 2px; flex-shrink: 0; }
-    /* 上4つのボタン（side-toolbar）とのグループ分けを示すため、ボタン1つ分（60px）のスペースを空ける */
-    .nav-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 60px; }
+    /* ── ナビエリア ──
+       画面が低いデバイスでは、ボタン群（上4〜7ボタン＋▲▼＋行情報）の合計高さが
+       画面の高さを超えることがある。以前はoverflow指定が無く、min-height:0も無かったため、
+       flexアイテムとして縮まずに画面外へそのままはみ出し、はみ出した分は操作できなかった
+       （bodyがoverflow:hiddenのため、スクロールで追いつくこともできなかった）。
+       min-height:0でflexアイテムとして縮めるようにした上で、overflow-y:autoで
+       縦スクロールできるようにし、touch-action:pan-yでタッチでの縦スクロールも許可する。 */
+    .nav-area {
+      display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 2px 8px;
+      flex-shrink: 0; min-height: 0; overflow-y: auto; overflow-x: hidden;
+      -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain;
+      scrollbar-width: none;
+    }
+    .nav-area::-webkit-scrollbar { display: none; }
+    /* 上4つのボタン（side-toolbar）とのグループ分けを示すため、ボタン1つ分（60px）のスペースを空ける。
+       flex-shrink:0を明示し、nav-areaがoverflow-y:autoになったことで（overflowがvisible以外だと
+       flexアイテムの自動最小サイズが0になる仕様のため）ボタン列自体が押し潰されないようにしている。 */
+    .nav-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 60px; flex-shrink: 0; }
     .nav-btn { width: 60px; height: 56px; border: none; border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: linear-gradient(135deg, #6c63ff 0%, #5a52d5 100%); color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
     .nav-btn .nav-btn-icon  { font-size: 22px; line-height: 1; }
     .nav-btn .nav-btn-label { font-size: 10px; font-weight: 700; line-height: 1; white-space: nowrap; }
@@ -589,7 +603,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.84</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.90</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -736,7 +750,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.84";
+      const CACHE_NAME = "jtable-v0.90";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -833,13 +847,13 @@ self.addEventListener('fetch', function(e) {
       naibusonsho1: {
         meisho: ['玄関','ホール','廊下','和室','洋室','キッチン','LDK','トイレ','浴室','収納','洗面','サンルーム','階段'],
         kakubu: ['内壁','天井','床','窓枠'],
-        shiage: ['京壁','クロス','モルタル','フローリング','CF','畳','杉杢','Co','タイル','木質板','ボード','漆喰'],
+        shiage: ['京壁','クロス','モルタル','フローリング','縁甲板張り','CF','畳','杉杢','Co','タイル','木質板','ボード','漆喰'],
         sonsho: ['亀裂','網目亀裂','糸切れ','ちり切れ','破損','隙間','下がり','染み','浮き','雨漏り跡'],
       },
       naibusonsho2: {
         meisho: ['店舗','風除室','玄関','トイレ','洗面','階段','ホール','事務所','倉庫'],
         kakubu: ['内壁','天井','床','窓枠'],
-        shiage: ['京壁','クロス','モルタル','フローリング','CF','畳','杉杢','Co','タイル','木質板','ボード','漆喰'],
+        shiage: ['京壁','クロス','モルタル','フローリング','縁甲板張り','CF','畳','杉杢','Co','タイル','木質板','ボード','漆喰'],
         sonsho: ['亀裂','網目亀裂','糸切れ','ちり切れ','破損','隙間','下がり','染み','浮き','雨漏り跡'],
       },
       tategusonshoo1: {
@@ -884,8 +898,20 @@ self.addEventListener('fetch', function(e) {
            value: セットする値
            watchFields: 監視する列キーの配列（このいずれかに値があれば自動セットする）
            列を増やす場合、各列の「値があるかどうか」の判定は hasValueInField() に委ねている
+       - oneShotFill: 「特定の列が特定の値に選択された、その瞬間だけ」別の列へ既定値をセットする単発ルール（任意）。
+           autoFillとは異なり、他の列の状態を継続的に監視して強制する仕組みではないため、
+           セット後にユーザーがtarget列を自由に書き換えても、以後そのルールによって上書きされることはない
+           （watchField側を再度同じ値に選び直せば、その都度もう一度だけ発動する）。
+           watchField: 監視する列キー、watchValue: その列がこの値になった瞬間に発動する
+           target: セット先の列キー、value: セットする値
     */
     const TAB_COLUMN_OVERRIDES = {
+      gaibusonsho: {
+        // 損傷種類（sonsho）が「破損」に選択された瞬間だけ、損傷の状況（jokyo）へ
+        // 既定値「現況」をセットする。autoFillと違い継続監視ではないため、
+        // セット後にjokyoを自由に書き換えても再度上書きされることはない。
+        oneShotFill: { watchField: 'sonsho', watchValue: '破損', target: 'jokyo', value: '現況' },
+      },
       tategusonshoo1: {
         omit: ['shiage'],
         labels: { kakubu: '各部仕上げ材' },
@@ -964,6 +990,20 @@ self.addEventListener('fetch', function(e) {
       } else {
         if (rowData[rule.target] === rule.value) rowData[rule.target] = '';
       }
+    }
+
+    // 現在アクティブなタブに設定されているoneShotFillルールを取得する（ルールがなければundefined）。
+    const getActiveOneShotFillRule = () => (TAB_COLUMN_OVERRIDES[App.activeTabId] || {}).oneShotFill;
+
+    // selectPanelOption()でtype列がvalueに選択された「その瞬間だけ」、oneShotFillルールに
+    // 合致する場合にtarget列へ既定値をセットする。autoFillと違って継続的な監視・抑制フラグは
+    // 一切持たないため、ここで一度セットした後にユーザーがtarget列を書き換えても、
+    // このルールが再びそれを上書きすることはない（watchField側を改めて同じ値に選び直した
+    // 場合のみ、その都度もう一度発動する）。
+    function applyOneShotFillRule(rowData, type, value) {
+      const rule = getActiveOneShotFillRule();
+      if (!rule || rule.watchField !== type || rule.watchValue !== value) return;
+      rowData[rule.target] = rule.value;
     }
 
 
@@ -2106,7 +2146,10 @@ self.addEventListener('fetch', function(e) {
 
     function selectPanelOption(type, value, freqValue) {
       if (Panel.activeRow === null) return;
-      getData()[Panel.activeRow][type] = value;
+      const rowData = getData()[Panel.activeRow];
+      rowData[type] = value;
+      // 外部タブの「破損」選択時など、特定の値が選ばれた瞬間だけ働く単発の初期値ルールを適用する
+      applyOneShotFillRule(rowData, type, value);
       // 名称列の数字付き値（例:「外部1」）は、パネル上の表示名（例:「外部」）で頻度を記録する
       bumpFreq(type, freqValue !== undefined ? freqValue : value);
       // この列がautoFillの対象列であれば、パネルから選び直したことを伝え、クリア抑制状態を解除する
@@ -2211,9 +2254,15 @@ self.addEventListener('fetch', function(e) {
       if (rowIndex === 0) return;
       const prev = getData()[rowIndex - 1][field];
       if (!prev || prev === 0) return;
-      getData()[rowIndex][field] = prev;
+      const rowData = getData()[rowIndex];
+      rowData[field] = prev;
+      // 外部タブの「破損」コピー時など、特定の値が入った瞬間だけ働く単発の初期値ルールを適用する
+      applyOneShotFillRule(rowData, field, prev);
       saveData(rowIndex); refreshActiveRow();
       showToast(prev + ' copied');
+      // 選択肢パネル確定時と同様、コピーした列の次の列が見える位置まで自動スクロールする
+      // （DOM再構築後に実行するため1フレーム待つ）
+      requestAnimationFrame(() => scrollToNextColumn(field));
     }
 
     /* ── テンキー ── */
@@ -2357,6 +2406,17 @@ self.addEventListener('fetch', function(e) {
       return m ? `${m[1]} ${m[2]}` : value;
     }
 
+    // 「サイディング」「フローリング」の2つの選択肢は、Excel出力時のみ全角カタカナから
+    // 半角カタカナに変換する（マスターの依頼により、Excel上での見た目・列幅を他の略称系の
+    // 選択肢（GL・Co・CB・AS等）に近づけるための対応）。画面上の表示・選択肢一覧・
+    // 保存データ（localStorage）は全角のまま変更しない。完全一致の場合のみ変換するため、
+    // 自由入力で似た文字列を入力した場合などは対象外（意図的に安全側に倒している）。
+    const EXPORT_HALFWIDTH_MAP = {
+      'サイディング': 'ｻｲﾃﾞｨﾝｸﾞ',
+      'フローリング': 'ﾌﾛｰﾘﾝｸﾞ',
+    };
+    const toExportHalfWidth = value => EXPORT_HALFWIDTH_MAP[value] || value;
+
     // 全タブ・全行の入力内容をJSON形式のバックアップファイルとしてダウンロードする。
     // 「保存（Excel出力）」のたび・「全削除」の直前に、自動で呼び出される（ボタン操作は無し）。
     function createJsonBackupFile() {
@@ -2395,7 +2455,8 @@ self.addEventListener('fetch', function(e) {
           ...fieldPlan.map(({ field, isNum, hasNumSuffix }) => {
             if (isNum) return isZeroNum(d[field]) ? '' : Number(d[field]);
             const raw = d[field] || '';
-            return hasNumSuffix ? formatNumSuffixForExport(raw) : raw;
+            if (hasNumSuffix) return formatNumSuffixForExport(raw);
+            return toExportHalfWidth(raw);
           })
         ]);
       }
