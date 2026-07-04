@@ -399,8 +399,12 @@
     .num-step-btn:active { transform: scale(0.9); }
     .num-display { flex: 0 0 var(--num-display-w, 4.2em); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1em; font-weight: 700; color: var(--text-main); background: var(--input-bg); border: 2px solid #0077b6; border-radius: 6px; cursor: pointer; }
 
-    /* ── 損傷の状況（非アクティブ行）── */
-    .jokyo-inactive { display: flex; width: 100%; height: 86%; background: var(--inactive-val-bg); border: 1px solid var(--inactive-val-border); border-radius: 8px; overflow: hidden; }
+    /* ── 損傷の状況（非アクティブ行）──
+       高さは他の非アクティブ行の値ボックス（.inactive-value、78%）と揃えている。
+       以前は86%のままになっており、同じ行の他の列（損傷種類・箇所）より背景の範囲が
+       高く見えてしまっていた（アクティブ行側の.jokyo-cell-innerはv0.53で.panel-triggerと
+       78%に統一済みだったが、非アクティブ行側の.jokyo-inactiveは対応漏れになっていた）。 */
+    .jokyo-inactive { display: flex; width: 100%; height: 78%; background: var(--inactive-val-bg); border: 1px solid var(--inactive-val-border); border-radius: 8px; overflow: hidden; }
     .jokyo-inactive-left { flex: 0 0 44%; display: flex; align-items: center; justify-content: center; font-size: 1em; font-weight: 700; color: var(--inactive-val-text); border-right: 1px solid var(--inactive-val-border); padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .jokyo-inactive-right { flex: 1; display: flex; flex-direction: column; }
     .jokyo-inactive-row { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 0.75em; font-weight: 600; color: var(--text-sub); white-space: nowrap; padding: 0 4px; }
@@ -603,7 +607,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.90</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.91</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -750,7 +754,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.90";
+      const CACHE_NAME = "jtable-v0.91";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
