@@ -397,7 +397,7 @@
     .num-step-btn.minus { background: linear-gradient(135deg, #e63946 0%, #c1121f 100%); color: #fff; }
     .num-step-btn.plus  { background: linear-gradient(135deg, #2ec4b6 0%, #20a39e 100%); color: #fff; }
     .num-step-btn:active { transform: scale(0.9); }
-    .num-display { flex: 0 0 var(--num-display-w, 4.2em); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1em; font-weight: 700; color: var(--text-main); background: var(--input-bg); border: 2px solid #0077b6; border-radius: 6px; cursor: pointer; }
+    .num-display { flex: 0 0 var(--num-display-w, 5em); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1em; font-weight: 700; color: var(--text-main); background: var(--input-bg); border: 2px solid #0077b6; border-radius: 6px; cursor: pointer; }
 
     /* ── 損傷の状況（非アクティブ行）──
        高さは他の非アクティブ行の値ボックス（.inactive-value、78%）と揃えている。
@@ -462,7 +462,9 @@
     .numpad-key { width: 76px; height: 66px; border: none; border-radius: 12px; font-size: 26px; font-weight: 600; cursor: pointer; background: rgba(255,255,255,0.15); color: #fff; }
     .numpad-key:active { transform: scale(0.93); background: rgba(255,255,255,0.25); }
     .numpad-key.backspace { background: linear-gradient(135deg, #e63946 0%, #c1121f 100%); }
-    .numpad-key.confirm   { background: linear-gradient(135deg, #2ec4b6 0%, #20a39e 100%); }
+    /* OKボタンは小数点ボタン追加（v0.93）に伴い最下段を専有する横長バーに変更したため、
+       他のキーと違いwidthをautoにしてグリッド3列分（grid-column）いっぱいに広げている。 */
+    .numpad-key.confirm   { background: linear-gradient(135deg, #2ec4b6 0%, #20a39e 100%); grid-column: 1 / -1; width: auto; }
 
     /* ── Toast ── */
     .toast { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(100px); background: #20a39e; color: #fff; padding: 14px 28px; border-radius: 12px; font-size: 17px; font-weight: 600; box-shadow: 0 10px 40px rgba(0,0,0,0.3); opacity: 0; transition: all 0.3s cubic-bezier(0.4,0,0.2,1); z-index: 2000; pointer-events: none; }
@@ -472,15 +474,51 @@
     .center-highlight { position: absolute; left: 0; right: 0; border-top: 3px solid #0077b6; border-bottom: 3px solid #0077b6; pointer-events: none; z-index: 10; background: var(--highlight-bg); }
 
     /* 案件名表示（ドラム領域の左上に常時表示。タップして編集できる）。
-       保存（Excel出力）時のファイル名末尾に「案件名＋様」として付加される。 */
+       表示・保存（Excel出力）時のファイル名末尾には「案件名様num1-num2」として付加される
+       （例:「山田様5-2」）。数字部分の入力（＋/－ボタン）は「案件名を入力」ダイアログ側に
+       あるため、このバッジ自体はタップして開くだけのシンプルな表示専用要素。 */
     .project-name-badge {
       position: absolute; top: 6px; left: 6px; z-index: 20;
-      max-width: 330px; padding: 6px 15px; border-radius: 12px;
+      max-width: 380px; padding: 6px 15px; border-radius: 12px;
       background: rgba(0,0,0,0.5); color: #fff;
       font-size: 18px; font-weight: 700; white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis; cursor: pointer;
     }
     .project-name-badge.empty { font-weight: 400; color: rgba(255,255,255,0.75); }
+
+    /* 案件名入力ダイアログ内の数字（棟番号・号室番号などの連番用、例:「5-2」）。
+       数字は任意項目のため、デフォルトでは「＋ 番号を追加」ボタンのみを表示し、
+       押した時点で初めて＋/－ステッパーの行に切り替わる（名前だけの状態が既定値であり、
+       名前を入力しただけで自動的に数字が付いてしまわないようにするため）。
+       ステッパー行の右端の✕ボタンで、再び「番号を追加」ボタンの状態（番号なし）に戻せる。
+       ダイアログの背景（#16213e）に合わせた配色。 */
+    .project-num-section { display: flex; justify-content: center; }
+    .project-num-add-btn {
+      padding: 8px 16px; border: 2px dashed rgba(255,255,255,0.35); border-radius: 10px;
+      background: transparent; color: rgba(255,255,255,0.75);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .project-num-add-btn:active { background: rgba(255,255,255,0.08); }
+    .project-num-edit-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .project-num-edit-val { min-width: 1.6em; text-align: center; font-size: 19px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+    .project-num-sep { font-size: 17px; font-weight: 700; color: rgba(255,255,255,0.6); padding: 0 1px; }
+    .project-num-btn {
+      width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 50%;
+      font-size: 16px; font-weight: 700; line-height: 1; color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .project-num-btn.minus { background: linear-gradient(135deg, #e63946 0%, #c1121f 100%); }
+    .project-num-btn.plus  { background: linear-gradient(135deg, #2ec4b6 0%, #20a39e 100%); }
+    .project-num-btn:active { transform: scale(0.9); }
+    .project-num-remove-btn {
+      width: 26px; height: 26px; flex-shrink: 0; margin-left: 4px;
+      border: 2px solid rgba(230,57,70,0.5); border-radius: 50%;
+      background: rgba(230,57,70,0.12); color: #ff8a93;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .project-num-remove-btn:active { background: rgba(230,57,70,0.25); }
+
 
     /* ── 名称パネル：数字サブ選択ゾーン（パネル右側・縦長スライドイン） ── */
     .meisho-num-zone {
@@ -607,7 +645,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.91</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.98</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -702,8 +740,9 @@
         <button class="numpad-key" onclick="numpadInput('1')">1</button>
         <button class="numpad-key" onclick="numpadInput('2')">2</button>
         <button class="numpad-key" onclick="numpadInput('3')">3</button>
-        <button class="numpad-key backspace" onclick="numpadBackspace()">⌫</button>
+        <button class="numpad-key" onclick="numpadDecimal()">.</button>
         <button class="numpad-key" onclick="numpadInput('0')">0</button>
+        <button class="numpad-key backspace" onclick="numpadBackspace()">⌫</button>
         <button class="numpad-key confirm" onclick="numpadConfirm()">OK</button>
       </div>
     </div>
@@ -733,12 +772,30 @@
     </div>
   </div>
 
-  <!-- 案件名入力ダイアログ（ブラウザ標準のprompt()の代わりに使用。showTextInput()から呼び出す） -->
+  <!-- 案件名入力ダイアログ（ブラウザ標準のprompt()の代わりに使用。showProjectNameDialog()から呼び出す）。
+       名前の入力欄に加えて、任意項目の数字2箇所（棟番号・号室番号などの連番用、＋/－ボタンで増減）も
+       このダイアログ内で編集する。数字は既定では「未使用（番号なし）」で、「＋ 番号を追加」ボタンを
+       押した時だけ＋/－ステッパーの行に切り替わる（名前だけを入力した場合に自動で数字が付いてしまわない
+       ようにするため）。名前・数字ともOK確定時にのみApp/localStorageへ反映され、キャンセル時は
+       変更を破棄する（編集中の一時状態はProjectEditが保持）。 -->
   <div class="backup-overlay" id="projectNameOverlay">
     <div class="backup-container">
       <div class="backup-title">案件名を入力</div>
-      <div class="backup-info-text">保存（Excel出力）時のファイル名末尾に「○○様」として追加されます</div>
+      <div class="backup-info-text">保存（Excel出力）時のファイル名末尾に「○○様」として追加されます（番号を追加すると「○○様5-2」のようになります）</div>
       <input type="text" id="projectNameInput" class="project-name-input" placeholder="例：山田">
+      <div class="project-num-section" id="projectNumSection">
+        <button class="project-num-add-btn" id="projectNumAddBtn" onclick="enableProjectNum()">＋ 番号を追加</button>
+        <div class="project-num-edit-row" id="projectNumEditRow" style="display:none;">
+          <button class="project-num-btn minus" onclick="stepProjectNumEdit(1,-1)">－</button>
+          <span class="project-num-edit-val" id="projectNumEditVal1">1</span>
+          <button class="project-num-btn plus" onclick="stepProjectNumEdit(1,1)">＋</button>
+          <span class="project-num-sep">-</span>
+          <button class="project-num-btn minus" onclick="stepProjectNumEdit(2,-1)">－</button>
+          <span class="project-num-edit-val" id="projectNumEditVal2">1</span>
+          <button class="project-num-btn plus" onclick="stepProjectNumEdit(2,1)">＋</button>
+          <button class="project-num-remove-btn" onclick="disableProjectNum()" title="番号を外す">✕</button>
+        </div>
+      </div>
       <button class="backup-action-btn restore" id="projectNameOkBtn">OK</button>
       <button class="backup-action-btn close" id="projectNameCancelBtn">キャンセル</button>
     </div>
@@ -754,7 +811,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.91";
+      const CACHE_NAME = "jtable-v0.98";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1078,7 +1135,6 @@ self.addEventListener('fetch', function(e) {
       DRAG_THRESHOLD: 5,    // ドラッグ方向（縦/横）を確定する移動量しきい値(px)
       EDGE_ZONE:     20,    // 画面端スワイプ判定エリアの幅(px)
       ANIM_DURATION: 220,   // 行送りアニメーションの時間(ms)
-      NUMPAD_MAX_DIGITS: 4, // テンキー入力の最大桁数
     };
 
     /* ── アプリ全体の状態 ── */
@@ -1097,6 +1153,13 @@ self.addEventListener('fetch', function(e) {
       hasUnsavedChanges: false,
       // 案件名（任意）。入力すると「○○様」の形で画面左上に常時表示し、保存時のファイル名末尾にも付加する。
       projectName: '',
+      // 案件名に付加する2つの数字（例:「山田様5-2」の5と2）。棟番号・号室番号のように、同じ案件内で
+      // 連番を素早く切り替えたいケースを想定した任意項目。projectNumEnabledがtrueの時だけ表示・付加される
+      // （名前だけを入力した場合に自動で「1-1」等が付いてしまわないよう、既定はfalse＝番号なし）。
+      // 「案件名を入力」ダイアログ内の「＋ 番号を追加」ボタンで初めてtrueになる。
+      projectNumEnabled: false,
+      projectNum1: 1,
+      projectNum2: 1,
       // アンドゥ履歴スタック（タブID → JSON文字列の配列、新しいものが末尾）。
       // saveData のたびに保存前の状態を積む。件数の上限はなし（無制限に遡れる）。
       // ページリロードでリセットされる（localStorageには保存しない）。
@@ -1458,7 +1521,7 @@ self.addEventListener('fetch', function(e) {
         const fontPx   = calcFontPx(); // calcFontSizeと同じ計算を共通関数化したものを参照
         // num-input-group 1行あたりの最小限必要な幅（label + ±ボタン + 表示枠の最小幅 + 単位文字）
         const minNumRowW = Math.max(...col.nums.map(n => {
-          let em = 2 + 2 + 4.2;     // ±ボタン(2em×2) + 表示枠の最小幅(4.2em、5桁分の余裕を持たせた値) ※.num-step-btn/.num-displayと同じ値
+          let em = 2 + 2 + 5;       // ±ボタン(2em×2) + 表示枠の最小幅(5em、6桁分の余裕を持たせた値) ※.num-step-btn/.num-displayと同じ値
           if (n.label) em += 1.6;   // ラベル(L/Wなど) ※.num-labelと同じ値
           let px = em * fontPx + 12; // +12はgap(3px)×4箇所分の概算
           if (n.unit) px += n.unit.length * fontPx * 0.6 + 4; // 単位文字(mmなど)の概算幅
@@ -1473,11 +1536,11 @@ self.addEventListener('fetch', function(e) {
         // 内部/外部タブ（ラベルあり）より「—」ボックスが広くなってしまう（label分のspaceがdisplayに渡るため）。
         // ラベルあり・単位なしの標準構成（内部/外部タブ相当）のnumRowWを基準に固定値を計算し、
         // すべてのタブで同じ幅になるようにする。
-        const emStd = 2 + 2 + 4.2 + 1.6; // 標準構成の全em合計（±ボタン各2em + 表示枠4.2em + ラベル1.6em）
+        const emStd = 2 + 2 + 5 + 1.6; // 標準構成の全em合計（±ボタン各2em + 表示枠5em + ラベル1.6em）
         const numRowW_std = Math.max(Math.round(numRowH * 2), Math.round(emStd * fontPx + 12));
         const numDisplayW = Math.max(
           Math.round(numRowW_std - (1.6 + 2 + 2) * fontPx - 9), // ±ボタン+ラベル分を差し引き、gap3px×3=9px
-          Math.round(4.2 * fontPx)  // 最小幅(4.2em、5桁分の余裕を持たせた値)を下限とする
+          Math.round(5 * fontPx)    // 最小幅(5em、6桁分の余裕を持たせた値)を下限とする
         );
         document.documentElement.style.setProperty('--num-display-w', `${numDisplayW}px`);
 
@@ -2286,9 +2349,18 @@ self.addEventListener('fetch', function(e) {
       Numpad.targetRow = null; Numpad.targetField = null; Numpad.value = '';
     }
 
+    // v0.94で桁数上限を撤廃した。以前はCONST.NUMPAD_MAX_DIGITSで数字の桁数（小数点は除く）を
+    // 制限していたが、依頼により制限そのものを取り払ったため、桁数チェックは行わない。
     function numpadInput(d) {
-      if (Numpad.value.length >= CONST.NUMPAD_MAX_DIGITS) return;
       Numpad.value = (Numpad.value === '0' || Numpad.value === '') ? d : Numpad.value + d;
+      document.getElementById('numpadDisplay').textContent = Numpad.value;
+    }
+
+    // 小数点ボタン。すでに小数点が入力済みの場合は無視する（1つの数値に小数点は1つまで）。
+    // 空欄の状態で押した場合は「0.」から始める（先頭桁欠落での見た目の不自然さを防ぐ）。
+    function numpadDecimal() {
+      if (Numpad.value.includes('.')) return;
+      Numpad.value = (Numpad.value === '') ? '0.' : Numpad.value + '.';
       document.getElementById('numpadDisplay').textContent = Numpad.value;
     }
 
@@ -2309,17 +2381,21 @@ self.addEventListener('fetch', function(e) {
 
     function numpadConfirm() {
       if (Numpad.targetRow !== null && Numpad.targetField !== null) {
+        // 末尾が小数点のまま確定された場合（例:「12.」）は、小数点だけ取り除いて保存する
+        const value = Numpad.value.endsWith('.') ? Numpad.value.slice(0, -1) : Numpad.value;
         commitFieldUpdate(
-          Numpad.targetRow, Numpad.targetField, Numpad.value,
-          numDispId(Numpad.targetField, Numpad.targetRow), numDisp(Numpad.value)
+          Numpad.targetRow, Numpad.targetField, value,
+          numDispId(Numpad.targetField, Numpad.targetRow), numDisp(value)
         );
       }
       closeNumpad();
     }
 
     /* ── 数値増減・箇所・備考 ── */
+    // ±ボタン。テンキーで小数（例:「12.5」）を入力した後でも小数部分を消さずに増減できるよう、
+    // parseInt ではなく parseFloat を使っている（parseIntのままだと小数部分が切り捨てられてしまう）。
     function stepNumField(rowIndex, field, delta) {
-      const next = Math.max(0, Math.min(9999, (parseInt(getData()[rowIndex][field]) || 0) + delta));
+      const next = Math.max(0, Math.min(9999, (parseFloat(getData()[rowIndex][field]) || 0) + delta));
       commitFieldUpdate(rowIndex, field, next, numDispId(field, rowIndex), numDisp(next));
     }
 
@@ -2351,8 +2427,10 @@ self.addEventListener('fetch', function(e) {
     // Blobをファイルとしてダウンロードする。
     // iOSのSafariは <a download="..."> 属性を無視するため、MIMEタイプを工夫して対応する。
     //   - xlsx: application/octet-stream にすることで「Unknown.xlsx」ではなく正しいファイル名で保存できる
-    //   - json: text/plain にすることでインライン表示を避け「Filesアプリに保存」等の選択肢が出る
-    //     （createJsonBackupFile 側で呼び出し前にMIMEタイプを変換済み）
+    //   - json: 同じく application/octet-stream にすることで、インライン表示を避けつつ
+    //     ファイル名の拡張子（.json）もそのまま保持される（createJsonBackupFile 側で変換済み。
+    //     以前使っていた text/plain は、実機で「.json.txt」のように拡張子が二重に付いてしまう
+    //     不具合があったため、xlsxと同じapplication/octet-streamに統一した）
     // 非iOS環境では元のMIMEタイプ・download属性をそのまま使う。
     // revokeObjectURLまでの待機時間もiOSのみ長めにしている（ダウンロード処理がblob URLを
     // 参照し終えるまでに時間がかかるため、早く解放すると失敗することがある）。
@@ -2430,12 +2508,21 @@ self.addEventListener('fetch', function(e) {
         payload.tabs[tabId] = raw ? JSON.parse(raw) : [];
       });
       const json = JSON.stringify(payload);
-      // iOSのSafariは application/json をブラウザ上でテキスト表示してしまう（ファイル保存にならない）。
-      // text/plain にすることで「Filesアプリに保存」等の選択肢が出るようになる。
-      // 非iOS環境では application/json のままダウンロードする。
-      const mimeType = IS_IOS_DEVICE ? 'text/plain' : 'application/json';
+      // iOSのSafariは application/json をブラウザ上でテキスト表示してしまう（ファイル保存にならない）ため、
+      // 従来は text/plain に変換していたが、実機検証の結果 text/plain だと保存時にSafari側が
+      // ファイル名の末尾へさらに「.txt」を付け足してしまい、「〜.json.txt」という二重拡張子になる
+      // 不具合が判明した（「開く」ボタンの選択ダイアログはjson/拡張子で絞り込んでいるため、
+      // 二重拡張子になったファイルが復元対象として表示されなくなってしまう）。
+      // xlsx出力（downloadBlob内）で実績のある application/octet-stream に変更したところ、
+      // インライン表示は避けつつ、ファイル名（拡張子）もそのまま保持されることを確認した。
+      // 非iOS環境では従来どおり application/json のままダウンロードする。
+      const mimeType = IS_IOS_DEVICE ? 'application/octet-stream' : 'application/json';
       const blob = new Blob([json], { type: mimeType });
-      downloadBlob(blob, `jtable_backup_${genTimestamp()}.json`);
+      // ファイル名末尾に案件名（入力されていれば）を付加する（Excel出力のファイル名と同じ形式・同じ
+      // formattedProjectName()を使用。例:「山田様」「山田様5-2」）。
+      const projFull = formattedProjectName();
+      const nameSuffix = projFull ? `_${projFull}` : '';
+      downloadBlob(blob, `jtable_backup_${genTimestamp()}${nameSuffix}.json`);
     }
 
     function exportToExcel() {
@@ -2497,10 +2584,9 @@ self.addEventListener('fetch', function(e) {
       ws['!cols']   = colsSpec.slice(0, colOffset);
       XLSX.utils.book_append_sheet(wb, ws, 'survey');
 
-      // ファイル名末尾に案件名（入力されていれば）+「様」を付加する。
-      // ファイル名に使えない文字（\/:*?"<>|）は念のため除去する。
-      const safeProjectName = App.projectName.replace(/[\\/:*?"<>|]/g, '').trim();
-      const nameSuffix = safeProjectName ? `_${safeProjectName}様` : '';
+      // ファイル名末尾に案件名（入力されていれば）+「様」+ 数字1-数字2（例:「山田様5-2」）を付加する。
+      const projFull = formattedProjectName();
+      const nameSuffix = projFull ? `_${projFull}` : '';
       const fileName = `survey_${genTimestamp()}${nameSuffix}.xlsx`;
 
       try {
@@ -2596,20 +2682,74 @@ self.addEventListener('fetch', function(e) {
       showToast('バックアップを保存し、全データを削除しました');
     }
 
-    /* ── 案件名表示（ドラム領域左上のバッジ。タップして編集） ──
-       入力すると「○○様」の形で常時表示し、保存（Excel出力）時のファイル名末尾にも付加される。 */
+    /* ── 案件名表示（ドラム領域左上のバッジ。タップして「案件名を入力」ダイアログを開く） ──
+       通常は「○○様」の形で表示される（例:「山田様」）。ダイアログ内で「＋ 番号を追加」を押した
+       場合のみ、末尾に「num1-num2」が付いた「○○様num1-num2」の形になる（例:「山田様5-2」）。
+       保存（Excel出力）時のファイル名末尾にも同じ形式で付加される。
+       数字2つ（棟番号・号室番号などの連番用）は、バッジ上ではなく「案件名を入力」ダイアログ内の
+       ＋/－ボタンで編集する（名前と数字・番号の有無をまとめてOKで確定・キャンセルで破棄する設計）。 */
+    // ダイアログを開いている間だけ使う、数字編集の一時状態（OKを押すまではApp/localStorageに反映しない）
+    const ProjectEdit = { enabled: false, num1: 1, num2: 1 };
+
     async function openProjectNameEditor() {
-      const input = await showTextInput(App.projectName);
-      if (input === null) return; // キャンセル
-      App.projectName = input.trim();
+      const result = await showProjectNameDialog(App.projectName, App.projectNumEnabled, App.projectNum1, App.projectNum2);
+      if (result === null) return; // キャンセル：名前・数字・番号の有無とも変更を破棄する
+      App.projectName = result.name.trim();
+      App.projectNumEnabled = result.enabled;
+      App.projectNum1 = result.num1;
+      App.projectNum2 = result.num2;
       localStorage.setItem('jtable_project_name', App.projectName);
+      localStorage.setItem('jtable_project_num_enabled', String(App.projectNumEnabled));
+      localStorage.setItem('jtable_project_num1', String(App.projectNum1));
+      localStorage.setItem('jtable_project_num2', String(App.projectNum2));
       updateProjectNameDisplay();
+    }
+
+    // 「＋ 番号を追加」ボタン。番号を1-1から使い始める（既存の数字が残っていればそれを引き継ぐ）。
+    function enableProjectNum() {
+      ProjectEdit.enabled = true;
+      updateProjectNumEditDisplay();
+    }
+
+    // ステッパー行の✕ボタン。番号を再び「未使用」に戻す（数字自体は破棄せず、次に追加した時のために
+    // ProjectEditに残しておく。ただしOKで確定した場合、enabled:falseなので表示・ファイル名には出ない）。
+    function disableProjectNum() {
+      ProjectEdit.enabled = false;
+      updateProjectNumEditDisplay();
+    }
+
+    // ダイアログ内の数字ステッパー（＋/－ボタン）。ProjectEdit（一時状態）のみを更新し、
+    // OKが押されるまでApp.projectNum1/2やlocalStorageには反映しない。下限1・上限999。
+    function stepProjectNumEdit(which, delta) {
+      const key = which === 1 ? 'num1' : 'num2';
+      ProjectEdit[key] = Math.max(1, Math.min(999, ProjectEdit[key] + delta));
+      updateProjectNumEditDisplay();
+    }
+
+    // ProjectEdit.enabledに応じて「＋ 番号を追加」ボタンとステッパー行の表示を切り替え、
+    // ステッパー行が表示されている場合は現在の数字も反映する。
+    function updateProjectNumEditDisplay() {
+      document.getElementById('projectNumAddBtn').style.display  = ProjectEdit.enabled ? 'none' : '';
+      document.getElementById('projectNumEditRow').style.display = ProjectEdit.enabled ? 'flex' : 'none';
+      document.getElementById('projectNumEditVal1').textContent = ProjectEdit.num1;
+      document.getElementById('projectNumEditVal2').textContent = ProjectEdit.num2;
+    }
+
+    // 案件名の完成形文字列を組み立てる（表示・ファイル名の両方で共通利用）。
+    // 名前が未入力の場合は空文字を返す（ファイル名側で「_」を付けないようにするため）。
+    // 番号（projectNumEnabled）がオンの場合のみ「様」の後ろに「num1-num2」を付ける。
+    // ファイル名に使えない文字（\/:*?"<>|）は念のため名前部分から除去する。
+    function formattedProjectName() {
+      const safeName = App.projectName.replace(/[\\/:*?"<>|]/g, '').trim();
+      if (!safeName) return '';
+      return App.projectNumEnabled ? `${safeName}様${App.projectNum1}-${App.projectNum2}` : `${safeName}様`;
     }
 
     function updateProjectNameDisplay() {
       const el = document.getElementById('projectNameBadge');
-      el.textContent = App.projectName ? `${App.projectName}様` : '案件名';
-      el.classList.toggle('empty', !App.projectName);
+      const full = formattedProjectName();
+      el.textContent = full || '案件名';
+      el.classList.toggle('empty', !full);
     }
 
     /* ── 起動時のローリングバックアップ通知・復元確認 ──
@@ -2676,15 +2816,27 @@ self.addEventListener('fetch', function(e) {
       });
     }
 
-    /* ── 汎用テキスト入力ダイアログ（ブラウザ標準のprompt()は使わず、アプリ内デザインのポップアップで入力を取る） ──
-       await showTextInput('初期値') の形で使う。OKなら入力文字列、キャンセルならnullが返る。 */
-    function showTextInput(defaultValue) {
+    /* ── 案件名入力ダイアログ（ブラウザ標準のprompt()は使わず、アプリ内デザインのポップアップで入力を取る） ──
+       await showProjectNameDialog(defaultName, defaultEnabled, defaultNum1, defaultNum2) の形で使う。
+       OKなら { name, enabled, num1, num2 } を返し、キャンセルならnullを返す（すべて変更が破棄される）。
+       番号は既定で「未使用」（defaultEnabled=false相当）で開始し、「＋ 番号を追加」ボタン
+       （enableProjectNum）を押した場合のみステッパー行が現れる。数字自体（＋/－ボタン）は
+       stepProjectNumEditでProjectEdit（一時状態）を書き換えるだけで、OKが押された時点で
+       この関数がProjectEditの値を読み取って結果に含める。
+       このダイアログは現状「案件名を入力」専用（呼び出し元は openProjectNameEditor のみ）のため、
+       以前の汎用テキスト入力ダイアログ（showTextInput）から、数字2つ・番号の有無の編集にも
+       対応する形に拡張した。 */
+    function showProjectNameDialog(defaultName, defaultEnabled, defaultNum1, defaultNum2) {
       return new Promise(resolve => {
         const overlay   = document.getElementById('projectNameOverlay');
         const input     = document.getElementById('projectNameInput');
         const okBtn     = document.getElementById('projectNameOkBtn');
         const cancelBtn = document.getElementById('projectNameCancelBtn');
-        input.value = defaultValue || '';
+        input.value = defaultName || '';
+        ProjectEdit.enabled = !!defaultEnabled;
+        ProjectEdit.num1 = defaultNum1 || 1;
+        ProjectEdit.num2 = defaultNum2 || 1;
+        updateProjectNumEditDisplay();
         overlay.classList.add('show');
         setTimeout(() => input.focus(), 50); // 表示アニメーション後にフォーカスし、確実にキーボードを出す
 
@@ -2695,7 +2847,7 @@ self.addEventListener('fetch', function(e) {
           input.removeEventListener('keydown', onKeydown);
           resolve(result);
         }
-        function onOk()       { cleanup(input.value); }
+        function onOk()       { cleanup({ name: input.value, enabled: ProjectEdit.enabled, num1: ProjectEdit.num1, num2: ProjectEdit.num2 }); }
         function onCancel()   { cleanup(null); }
         function onKeydown(e) { if (e.key === 'Enter') onOk(); }
         okBtn.addEventListener('click', onOk);
@@ -2728,6 +2880,9 @@ self.addEventListener('fetch', function(e) {
       loadTheme();
       loadFreq();
       App.projectName = localStorage.getItem('jtable_project_name') || '';
+      App.projectNumEnabled = localStorage.getItem('jtable_project_num_enabled') === 'true';
+      App.projectNum1 = parseInt(localStorage.getItem('jtable_project_num1'), 10) || 1;
+      App.projectNum2 = parseInt(localStorage.getItem('jtable_project_num2'), 10) || 1;
       updateProjectNameDisplay();
       Object.keys(TAB_DEFS).forEach(loadTabData);
       notifyStartupRecoveryStatus();
