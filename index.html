@@ -645,7 +645,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.98</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.99</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -811,7 +811,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.98";
+      const CACHE_NAME = "jtable-v0.99";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1919,11 +1919,18 @@ self.addEventListener('fetch', function(e) {
       const dx = Math.abs(c.x - Drum.lastScrollX), dy = Math.abs(c.y - Drum.startY);
       if (dx > CONST.DRAG_THRESHOLD || dy > CONST.DRAG_THRESHOLD) Drum.tapMoved = true;
 
+      // 画面端から始まったタッチは、縦横の方向判定（DRAG_THRESHOLD到達）を待たず、
+      // 最初のtouchmoveの時点でできるだけ早くpreventDefault()する。
+      // iOSの画面端スワイプ（戻る/進むナビゲーション、ホーム画面追加後のスタンドアロン表示でも発動しうる）は
+      // タッチ開始からごくわずかな移動量でジェスチャー認識が始まるため、DRAG_THRESHOLD（5px）を
+      // 超えるのを待ってからpreventDefaultすると間に合わず、ナビゲーション側が先に発動してしまうことがあった。
+      // isEdgeStartが立っている間は、方向が確定する前でも毎回preventDefaultしておくことで、
+      // このタイミングのズレによる誤発動（画面が一瞬崩れて見える等）を防ぐ。
+      if (Drum.isEdgeStart && e.cancelable) e.preventDefault();
+
       // しきい値を超えた時点で縦か横かを確定
       if (Drum.isVerticalDrag === null) {
         if (dx > CONST.DRAG_THRESHOLD || dy > CONST.DRAG_THRESHOLD) Drum.isVerticalDrag = dy >= dx;
-        // 画面端から始まった横方向の動きは、エッジスワイプ誤爆防止のため即座に止める
-        if (Drum.isVerticalDrag === false && Drum.isEdgeStart && e.cancelable) e.preventDefault();
         return;
       }
 
