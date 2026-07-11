@@ -216,6 +216,25 @@
     }
     .app-switch-fab:active { transform: scale(0.92); }
 
+    /* ── 全画面表示ボタン（画面左下、Jスタンプ切り替えボタンの隣に固定表示） ──
+       iPadのStage Manager（マルチタスク機能）でSafari／このアプリがウィンドウ表示（フローティング
+       ウィンドウ）になっていると、ウィンドウの外側にホーム画面の背景（白い領域）とリサイズ用の
+       半月ハンドルが見えてしまうことがある。これはStage Manager自体の挙動であり、Web技術からは
+       完全に制御できない（Apple公式コミュニティでも「Stage Manager有効時はこのUI要素を隠せない」と
+       案内されている）ため、根本的な解消には「設定」→「ホーム画面とマルチタスク」→「Stage Manager」を
+       オフにするか、毎回ウィンドウを手動で最大化する必要がある。
+       このボタンはFullscreen API（requestFullscreen）で全画面表示への切り替えを試みる補助的な機能で、
+       状況によっては効果がない場合がある点に留意（100%解消を保証するものではない）。 */
+    .fullscreen-fab {
+      position: fixed; left: 78px; bottom: 16px; z-index: 50;
+      width: 52px; height: 52px; border-radius: 50%; border: none;
+      background: linear-gradient(135deg, #4c566a 0%, #2e3648 100%);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 22px; cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .fullscreen-fab:active { transform: scale(0.92); }
+
     /* ── バックアップ／復元ダイアログ（numpad-overlayと同じ仕組みの中央モーダル） ── */
     .backup-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1100; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
     .backup-overlay.show { display: flex; }
@@ -450,6 +469,10 @@
     .nav-btn .nav-btn-icon  { font-size: 22px; line-height: 1; }
     .nav-btn .nav-btn-label { font-size: 10px; font-weight: 700; line-height: 1; white-space: nowrap; }
     .nav-btn:disabled { opacity: 0.3; }
+    /* 「▶ 右端に」ボタン（横スクロールを1タップで右端まで進める）。
+       上の.nav-buttons（▲▼ボタン）とのグループ分けを示すため、.nav-buttonsの直後にボタン1つ分
+       （60px、上の.side-toolbarとの間隔と同じ考え方）のスペースを空けている。 */
+    .scroll-right-btn { margin-top: 60px; flex-shrink: 0; }
     .row-info-side { font-size: 11px; font-weight: 700; color: var(--text-sub); text-align: center; white-space: nowrap; flex-shrink: 0; }
 
     /* ── テンキー ── */
@@ -634,9 +657,22 @@
       background: var(--panel-item-selected);
     }
 
+    /* ── タブの当たり判定拡張レイヤー ──
+       タブ切り替えを狙ったタップが、タブ本体（.tab-btn）よりわずかに上に外れてしまうと
+       何も反応しない「死角」になり、それを埋めようと連打すると画面上端付近を繰り返しタップする
+       ことになり、意図せずiPadのブラウザ操作（フルスクリーン解除等）につながってしまう問題への対策。
+       .header-topにoverflow:hiddenが指定されているため、.tab-btn自身の疑似要素などで
+       上方向にヒットエリアを伸ばそうとしてもクリップされてしまう。そのため、header-topの外側
+       （position:fixedでheader全体より上のレイヤー）に、各タブの実際の位置・幅に合わせた透明な
+       当たり判定用の矩形を、画面の物理的な上端(top:0)からタブ本体の上端まで届く高さでJS側から
+       動的に生成して重ねている（updateTabTapZones()）。タブのデザイン・レイアウト自体は一切変更していない。 */
+    .tab-tap-extend-layer { position: fixed; inset: 0; pointer-events: none; z-index: 15; }
+    .tab-tap-extend-zone  { position: fixed; pointer-events: auto; }
+
     /* ── パネル背景 ── */
     .panel-backdrop { display: none; position: fixed; inset: 0; z-index: 499; }
     .panel-backdrop.open { display: block; }
+
   </style>
 </head>
 <body>
@@ -645,7 +681,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v0.99</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.05</div>
           <div class="tab-bar" id="tabBar">
             <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
             <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
@@ -686,9 +722,14 @@
         <button class="nav-btn" id="btnUp"   onclick="jumpToFirstRow()"><span class="nav-btn-icon">▲</span><span class="nav-btn-label">1行目</span></button>
         <button class="nav-btn" id="btnDown" onclick="jumpToLastFilledRow()"><span class="nav-btn-icon">▼</span><span class="nav-btn-label">入力末尾</span></button>
       </div>
+      <button class="nav-btn scroll-right-btn" onclick="scrollToRightEnd()"><span class="nav-btn-icon">▶</span><span class="nav-btn-label">右端に</span></button>
       <div class="row-info-side" id="rowInfo">1/200</div>
     </div>
   </div>
+
+  <!-- タブの当たり判定拡張レイヤー（中身はupdateTabTapZones()がJSで動的に生成）。
+       header-topのoverflow:hiddenでクリップされないよう、header/app-containerの外側に配置している。 -->
+  <div class="tab-tap-extend-layer" id="tabTapExtendLayer"></div>
 
   <div class="panel-backdrop" id="panelBackdrop" onclick="onPanelBackdropClick()"></div>
 
@@ -802,6 +843,7 @@
   </div>
 
   <a class="app-switch-fab" href="https://joujing9119-maker.github.io/jstamp/" title="Jスタンプに切り替え">🏠</a>
+  <button class="fullscreen-fab" onclick="requestAppFullscreen()" title="全画面表示にする">⛶</button>
 
   <script>
     // ── Service Worker (Blob URL方式・Jstampと同じ仕組み) ──────────────────
@@ -811,7 +853,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v0.99";
+      const CACHE_NAME = "jtable-v1.05";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1366,6 +1408,16 @@ self.addEventListener('fetch', function(e) {
       if (hScrollAnimId) { cancelAnimationFrame(hScrollAnimId); hScrollAnimId = null; }
     }
 
+    // 右側ツールバーの「▶ 右端に」ボタン：横スクロールを1タップで右端まで進める。
+    // 他の自動横スクロール（scrollToNextColumn・settleAtRowの左端リセット）と同じanimateScrollLeft()を
+    // 使っているため、瞬間移動（ワープ）ではなく同じ質感の滑らかなアニメーションで動く。
+    // 右端の位置は scrollWidth - clientWidth（scrollToNextColumn内のmaxScrollLeftと同じ計算式）。
+    // すでに右端にいる場合はanimateScrollLeft()側の差分チェック（diff === 0）により何もしない。
+    function scrollToRightEnd() {
+      const maxScrollLeft = scrollWrapper.scrollWidth - scrollWrapper.clientWidth;
+      animateScrollLeft(maxScrollLeft);
+    }
+
 
     /* ── データ管理 ──
        columns定義から、そのタブのデータ行が持つべきフィールド一覧（キーとデフォルト値）を組み立てる。
@@ -1459,6 +1511,29 @@ self.addEventListener('fetch', function(e) {
       App.activeTabId = tabId;
       buildLayoutForActiveTab();
       renderAllRows(); updateRowInfo(); updateUndoRedoBtns();
+    }
+
+    // タブ本体（.tab-btn）より上に外れたタップでもタブ切り替えが反応するよう、各タブの実際の
+    // 位置・幅に合わせた透明な当たり判定用の矩形を、画面の物理的な上端(y=0)からタブ本体の上端まで
+    // 届く高さで動的に生成する。.header-topのoverflow:hiddenでクリップされてしまうため、
+    // header/app-containerの外側（#tabTapExtendLayer、position:fixed）に重ねる方式にしている。
+    // タブの並び順・幅はレスポンシブに変わるため、画面回転・リサイズのたびに再計算が必要
+    // （handleResize()から呼び出す）。タブの数自体は変わらないためタブ切り替えごとの再計算は不要。
+    function updateTabTapZones() {
+      const layer = document.getElementById('tabTapExtendLayer');
+      layer.innerHTML = '';
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const rect = btn.getBoundingClientRect();
+        if (rect.top <= 0 || rect.width <= 0) return; // 画面外・未描画の場合は対象外
+        const zone = document.createElement('div');
+        zone.className = 'tab-tap-extend-zone';
+        zone.style.left   = `${rect.left}px`;
+        zone.style.width  = `${rect.width}px`;
+        zone.style.top    = '0px';
+        zone.style.height = `${rect.top}px`;
+        zone.addEventListener('click', () => switchTab(btn.dataset.tab));
+        layer.appendChild(zone);
+      });
     }
 
     /* ── レイアウト構築（columns定義から、列幅グリッド・ヘッダー・選択パネルを組み立てる） ──
@@ -1569,6 +1644,26 @@ self.addEventListener('fetch', function(e) {
     // onclick属性に埋め込む文字列のエスケープ（シングルクォート・バックスラッシュ対策）
     const escJs = s => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
+    /* ── 全画面表示ボタン ──
+       iPadのStage Manager等でSafari／このアプリがウィンドウ表示になっている場合に、
+       Fullscreen API（webkitプレフィックス対応）で全画面表示への切り替えを試みる。
+       ただし、Apple公式コミュニティでも案内されている通り、Stage Manager有効時はウィンドウの
+       リサイズハンドル自体をWeb技術から完全に消す手段が無いため、これはあくまで「試す価値のある
+       一手段」であり、必ず解消できるとは限らない（根本的な解消にはiPad本体の設定変更が必要）。 */
+    function requestAppFullscreen() {
+      const el = document.documentElement;
+      const request = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (!request) { showToast('お使いの環境では全画面表示に対応していません'); return; }
+      try {
+        const result = request.call(el);
+        if (result && typeof result.catch === 'function') {
+          result.catch(() => showToast('全画面表示に切り替えられませんでした'));
+        }
+      } catch (e) {
+        showToast('全画面表示に切り替えられませんでした');
+      }
+    }
+
     /* ── テーマ ── */
     function toggleTheme() {
       const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -1605,6 +1700,7 @@ self.addEventListener('fetch', function(e) {
           applyBtnSize(r);
         });
         applyRowPositions(Drum.dragOffset);
+        updateTabTapZones(); // 画面回転・リサイズでタブの位置・幅が変わるため、当たり判定も再計算する
       });
     }
 
@@ -2399,10 +2495,17 @@ self.addEventListener('fetch', function(e) {
     }
 
     /* ── 数値増減・箇所・備考 ── */
+    // 浮動小数点演算特有の誤差（例: 62.1 - 1 が 61.099999999999994 になる等）を取り除くための丸め。
+    // 小数第6位までを基準に丸めることで、実用上使うであろう桁数（L/W・mm値は通常小数1〜2桁程度）の
+    // 精度はそのまま保ちつつ、演算誤差だけを除去する。
+    const roundFloat = v => Math.round((v + Number.EPSILON) * 1e6) / 1e6;
+
     // ±ボタン。テンキーで小数（例:「12.5」）を入力した後でも小数部分を消さずに増減できるよう、
     // parseInt ではなく parseFloat を使っている（parseIntのままだと小数部分が切り捨てられてしまう）。
+    // 加算後にroundFloat()を通しているのは、浮動小数点演算の誤差（±ボタンを連打すると
+    // 61.099999999999994のような極小の誤差が蓄積して表示されてしまう不具合）を防ぐため。
     function stepNumField(rowIndex, field, delta) {
-      const next = Math.max(0, Math.min(9999, (parseFloat(getData()[rowIndex][field]) || 0) + delta));
+      const next = roundFloat(Math.max(0, Math.min(9999, (parseFloat(getData()[rowIndex][field]) || 0) + delta)));
       commitFieldUpdate(rowIndex, field, next, numDispId(field, rowIndex), numDisp(next));
     }
 
@@ -2470,10 +2573,22 @@ self.addEventListener('fetch', function(e) {
         fieldPlan.push({ field, isNum, hasNumSuffix });
       };
 
+      // データを持たない、見た目だけの区切り用の空白列を追加する（field: nullなのでtabRows側では常に空文字になる）。
+      // 建具①②・傾斜①②タブは「仕上げ材」列自体が無く（TAB_COLUMN_OVERRIDESのomitで削除）、
+      // 「損傷の状況」の数値項目も1つ（mm）しか持たない（内部①②・外部タブは仕上げ材あり・
+      // length/widthの2項目）ため、そのままでは出力列数が2列少なくなり、Excel上でタブごとに
+      // 列位置がずれて並んでしまう。ここで空白列を差し込み、全タブの列数・列位置をExcel上で揃える。
+      const addBlankColumn = () => addExportColumn('', 3, null, false);
+
+      const hasShiage = columns.some(c => c.key === 'shiage');
+
       columns.forEach(col => {
         if (col.type === 'select_with_nums') {
           addExportColumn(col.key, 12, col.key, false);
           col.nums.forEach(n => addExportColumn(n.exportLabel || n.key, 6, n.key, true));
+          // 標準（内部①②・外部タブ）はnumsが2件（length/width）。それに満たない分（建具・傾斜タブの
+          // mm1件のみ）は、widthに相当する位置に空白列を補って列数を揃える。
+          for (let i = col.nums.length; i < 2; i++) addBlankColumn();
         } else if (col.type === 'counter') {
           addExportColumn(col.key, 5, col.key, true);
         } else if (col.type === 'text') {
@@ -2481,6 +2596,8 @@ self.addEventListener('fetch', function(e) {
         } else {
           // select
           addExportColumn(col.key, 12, col.key, false, !!col.hasNumSuffix);
+          // 各部（kakubu）の直後、本来「仕上げ材」があった位置に、shiage列自体が無いタブでのみ空白列を補う
+          if (col.key === 'kakubu' && !hasShiage) addBlankColumn();
         }
       });
       return { headers, widths, fieldPlan };
@@ -2901,6 +3018,7 @@ self.addEventListener('fetch', function(e) {
       Drum.targetRow = Drum.currentRow;
       updateRowInfo(); updateUndoRedoBtns();
       setupEvents();
+      updateTabTapZones(); // タブの初期位置・幅に合わせて当たり判定レイヤーを生成する
       window.addEventListener('resize', handleResize);
       if (typeof ResizeObserver !== 'undefined')
         new ResizeObserver(handleResize).observe(document.getElementById('drumViewport'));
