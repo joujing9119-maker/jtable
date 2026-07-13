@@ -118,11 +118,17 @@
     }
     .tab-bar {
       display: flex; align-items: flex-end;
-      flex: 1 1 auto; min-width: 0; padding: 5px 6px 0; gap: 3px;
+      flex: 1 1 auto; min-width: 0; padding: 12px 6px 0; gap: 3px;
+      /* v1.07〜: タブの本数が可変になったため、収まりきらない場合は横スクロールできるようにする。
+         padding-topを5px→12pxに広げているのは、overflow-x:autoを指定すると（CSS仕様上）
+         overflow-yも実質autoとして扱われ、タブ右上の件数バッジ（top:-7pxとタブの外へはみ出す配置）が
+         上端でクリップされてしまうため、その分の余白をあらかじめ確保するための対応。 */
+      overflow-x: auto; overflow-y: visible; scrollbar-width: none; -webkit-overflow-scrolling: touch;
     }
+    .tab-bar::-webkit-scrollbar { display: none; }
     .tab-btn {
       position: relative;
-      flex: 1 1 0; min-width: 0; max-width: 160px; height: 36px;
+      flex: 0 0 auto; min-width: 76px; max-width: 160px; height: 36px;
       display: flex; align-items: center; justify-content: center;
       font-size: 16px; font-weight: 700; cursor: pointer; border: none;
       padding: 0 10px;
@@ -162,6 +168,116 @@
       pointer-events: none;
     }
     .tab-data-badge.show { display: flex; }
+
+    /* ── タブ管理ボタン（タブバー右端の常設ボタン） ──
+       タブバー（.tab-bar、横スクロール領域）の外側・header-topの直接の子として配置しているため、
+       タブの本数に関わらず常に同じ位置（右端）に表示され続ける。 */
+    .tab-manage-btn {
+      flex-shrink: 0; width: 34px; height: 34px; margin-bottom: 1px;
+      border: none; border-radius: 10px; cursor: pointer;
+      background: rgba(0,119,182,0.16); color: var(--th-text);
+      font-size: 17px; display: flex; align-items: center; justify-content: center;
+    }
+    .tab-manage-btn:active { filter: brightness(0.92); }
+
+    /* ── タブが1つも無い時の案内表示（table-area内） ── */
+    .table-empty-state {
+      display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    }
+    .empty-state-icon { font-size: 48px; opacity: 0.5; }
+    .empty-state-text { font-size: 16px; font-weight: 700; color: var(--text-sub); }
+    .empty-state-btn {
+      padding: 12px 24px; border: none; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
+      color: #fff; font-size: 15px; font-weight: 700;
+      box-shadow: 0 4px 15px rgba(0,180,216,0.3);
+    }
+    .empty-state-btn:active { transform: scale(0.96); }
+
+    /* ── タブ管理モーダル ──
+       v1.08まではnumpad-overlay等の他の小さなポップアップ（テンキー・確認ダイアログ等）と同じく
+       固定のダーク配色（#16213e等）にしていたが、タブ管理は設定画面のように腰を据えて操作する
+       ことが多い画面のため、ライト/ダーク両テーマに追従するよう、選択パネル（.select-panel）等と
+       同じCSS変数（--panel-bg・--text-main等）ベースの配色に書き換えた（v1.09）。 */
+    .tabmgr-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1050;
+      align-items: center; justify-content: center; backdrop-filter: blur(4px);
+      /* z-indexは.backup-overlay（確認ダイアログ・案件名ダイアログ・タブ名編集ダイアログ等、1100）より
+         低くしている。タブ管理の中から「削除しますか？」等の確認（showConfirm）やタブ名編集
+         （showTextPrompt）を呼ぶと、それらは常にタブ管理より手前に表示される必要があるため
+         （そうしないと確認ダイアログがタブ管理の裏に隠れて操作できなくなってしまう）。 */
+    }
+    .tabmgr-overlay.show { display: flex; }
+    .tabmgr-container {
+      background: var(--panel-bg); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      border: 2px solid var(--panel-border);
+      width: min(92vw, 480px); max-height: 86vh;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .tabmgr-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 18px 10px; flex-shrink: 0;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .tabmgr-title { font-size: 17px; font-weight: 700; color: var(--th-text); }
+    .tabmgr-close-btn {
+      width: 30px; height: 30px; border: none; border-radius: 50%;
+      background: var(--inactive-val-bg); color: var(--text-main); font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .tabmgr-body {
+      flex: 1; overflow-y: auto; padding: 4px 18px 18px;
+      -webkit-overflow-scrolling: touch; touch-action: pan-y;
+    }
+    .tabmgr-section { margin-top: 14px; }
+    .tabmgr-section-title { font-size: 12px; font-weight: 700; color: var(--text-sub); margin-bottom: 6px; }
+    .tabmgr-empty { font-size: 13px; color: var(--text-sub); padding: 10px 4px; }
+    .tabmgr-list { display: flex; flex-direction: column; gap: 6px; }
+    .tabmgr-item {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--inactive-val-bg); border: 1px solid var(--inactive-val-border);
+      border-radius: 10px; padding: 8px 10px;
+      touch-action: none; /* ドラッグハンドルの縦移動をJSで完全制御するため */
+    }
+    .tabmgr-item.dragging { background: var(--row-active-bg); z-index: 5; position: relative; }
+    .tabmgr-drag-handle {
+      flex-shrink: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+      color: var(--text-sub); font-size: 16px; cursor: grab; touch-action: none;
+    }
+    .tabmgr-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+    .tabmgr-item-label {
+      font-size: 15px; font-weight: 700; color: var(--text-main);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .tabmgr-item-preset { font-size: 11px; color: var(--text-sub); }
+    .tabmgr-del-btn {
+      flex-shrink: 0; width: 30px; height: 30px; border: none; border-radius: 50%;
+      background: rgba(230,57,70,0.14); color: #e63946; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .tabmgr-archive-item { align-items: center; }
+    .tabmgr-archive-btns { flex-shrink: 0; display: flex; gap: 6px; }
+    .tabmgr-restore-btn, .tabmgr-purge-btn {
+      border: none; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 700; cursor: pointer; color: #fff;
+    }
+    .tabmgr-restore-btn { background: linear-gradient(135deg, #2ec4b6 0%, #20a39e 100%); }
+    .tabmgr-purge-btn   { background: linear-gradient(135deg, #e63946 0%, #b8232f 100%); }
+    .tabmgr-add-row { display: flex; gap: 8px; }
+    .tabmgr-select {
+      flex: 1; min-width: 0; padding: 10px; border-radius: 10px;
+      background: var(--input-bg); border: 2px solid var(--input-border);
+      color: var(--text-main); font-size: 15px;
+    }
+    /* <select>のプルダウン本体（閉じている時のボックス）はテーマの文字色（--text-main）に追従させているが、
+       開いた時の選択肢一覧はSafari/iOSがOS側のネイティブUI（背景が白系）で描画するため、
+       アプリ側のテーマに関わらず、<option>側にだけ明示的に濃い文字色・白背景を指定して
+       「白背景に白文字で見えなくなる」事態（v1.08で対応した不具合）を避けている。 */
+    .tabmgr-select option {
+      color: #1a1a2e; background: #fff;
+    }
+    .tabmgr-add-btn {
+      flex-shrink: 0; border: none; border-radius: 10px; padding: 0 16px;
+      background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
+      color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
     .side-toolbar { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
     .side-tool-btn {
       width: 60px; height: 56px; border: none; border-radius: 14px;
@@ -681,16 +797,12 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.05</div>
-          <div class="tab-bar" id="tabBar">
-            <button class="tab-btn active" data-tab="naibusonsho1"   onclick="switchTab('naibusonsho1')"><span class="tab-label">内部①</span><span class="tab-data-badge" id="badge_naibusonsho1"></span></button>
-            <button class="tab-btn"        data-tab="naibusonsho2"   onclick="switchTab('naibusonsho2')"><span class="tab-label">内部②</span><span class="tab-data-badge" id="badge_naibusonsho2"></span></button>
-            <button class="tab-btn"        data-tab="tategusonshoo1" onclick="switchTab('tategusonshoo1')"><span class="tab-label">建具①</span><span class="tab-data-badge" id="badge_tategusonshoo1"></span></button>
-            <button class="tab-btn"        data-tab="tategusonshoo2" onclick="switchTab('tategusonshoo2')"><span class="tab-label">建具②</span><span class="tab-data-badge" id="badge_tategusonshoo2"></span></button>
-            <button class="tab-btn"        data-tab="keishasoktei1"  onclick="switchTab('keishasoktei1')"><span class="tab-label">傾斜①</span><span class="tab-data-badge" id="badge_keishasoktei1"></span></button>
-            <button class="tab-btn"        data-tab="keishasoktei2"  onclick="switchTab('keishasoktei2')"><span class="tab-label">傾斜②</span><span class="tab-data-badge" id="badge_keishasoktei2"></span></button>
-            <button class="tab-btn"        data-tab="gaibusonsho"    onclick="switchTab('gaibusonsho')"><span class="tab-label">外部</span><span class="tab-data-badge" id="badge_gaibusonsho"></span></button>
-          </div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.11</div>
+          <!-- タブボタンはApp.tabsの内容からrenderTabBar()がJSで動的に生成する（固定タブは廃止） -->
+          <div class="tab-bar" id="tabBar"></div>
+          <!-- 「タブ管理」ボタン：追加・削除・並び替え・改名を行う専用モーダルを開く。
+               タブバーの中身（スクロール領域）とは別のflex-shrink:0要素として、常に右端に表示する。 -->
+          <button class="tab-manage-btn" onclick="openTabManager()" title="タブ管理">🗂</button>
         </div>
       </div>
 
@@ -704,6 +816,12 @@
             <div class="project-name-badge empty" id="projectNameBadge" onclick="openProjectNameEditor()">案件名</div>
             <div class="drum-container" id="drumContainer"></div>
           </div>
+        </div>
+        <!-- タブが1つも無い時の案内表示（updateEmptyStateVisibility()がdisplayを切り替える） -->
+        <div class="table-empty-state" id="tableEmptyState">
+          <div class="empty-state-icon">🗂</div>
+          <div class="empty-state-text">タブがありません</div>
+          <button class="empty-state-btn" onclick="openTabManager()">＋ タブを追加</button>
         </div>
       </div>
     </div>
@@ -842,6 +960,43 @@
     </div>
   </div>
 
+  <!-- 汎用テキスト入力ダイアログ（タブ名編集で使用。showTextPrompt()から呼び出す） -->
+  <div class="backup-overlay" id="textPromptOverlay">
+    <div class="backup-container">
+      <div class="backup-title" id="textPromptTitle">名前を編集</div>
+      <input type="text" id="textPromptInput" class="project-name-input" placeholder="タブ名">
+      <button class="backup-action-btn restore" id="textPromptOkBtn">OK</button>
+      <button class="backup-action-btn close" id="textPromptCancelBtn">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- タブ管理モーダル（タブの追加・削除・並び替え・改名）。openTabManager()/closeTabManager()で開閉。 -->
+  <div class="tabmgr-overlay" id="tabMgrOverlay">
+    <div class="tabmgr-container">
+      <div class="tabmgr-header">
+        <div class="tabmgr-title">タブ管理</div>
+        <button class="tabmgr-close-btn" onclick="closeTabManager()">✕</button>
+      </div>
+      <div class="tabmgr-body">
+        <div class="tabmgr-section">
+          <div class="tabmgr-section-title">現在のタブ（☰を掴んでドラッグで並び替え・タップで名前編集）</div>
+          <div class="tabmgr-list" id="tabMgrActiveList"></div>
+        </div>
+        <div class="tabmgr-section">
+          <div class="tabmgr-section-title">タブを追加</div>
+          <div class="tabmgr-add-row">
+            <select class="tabmgr-select" id="tabMgrPresetSelect"></select>
+            <button class="tabmgr-add-btn" onclick="addTabFromPreset()">＋ 追加</button>
+          </div>
+        </div>
+        <div class="tabmgr-section">
+          <div class="tabmgr-section-title">削除済み（アーカイブ）</div>
+          <div class="tabmgr-list" id="tabMgrArchiveList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <a class="app-switch-fab" href="https://joujing9119-maker.github.io/jstamp/" title="Jスタンプに切り替え">🏠</a>
   <button class="fullscreen-fab" onclick="requestAppFullscreen()" title="全画面表示にする">⛶</button>
 
@@ -853,7 +1008,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v1.05";
+      const CACHE_NAME = "jtable-v1.11";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1061,8 +1216,10 @@ self.addEventListener('fetch', function(e) {
     }
 
     // 現在アクティブなタブに設定されているautoFillルールを取得する（ルールがなければundefined）。
-    // 複数箇所で同じ参照（TAB_COLUMN_OVERRIDES[タブID].autoFill）を行うため共通化している。
-    const getActiveAutoFillRule = () => (TAB_COLUMN_OVERRIDES[App.activeTabId] || {}).autoFill;
+    // 複数箇所で同じ参照（TAB_COLUMN_OVERRIDES[プリセットID].autoFill）を行うため共通化している。
+    // v1.07〜: タブはプリセットの「インスタンス」になったため、TAB_COLUMN_OVERRIDESの参照は
+    // インスタンスID（App.activeTabId）ではなく、そのインスタンスが属するプリセットID（getActivePresetId()）で行う。
+    const getActiveAutoFillRule = () => (TAB_COLUMN_OVERRIDES[getActivePresetId()] || {}).autoFill;
 
     // 行データに対して、現在のタブのautoFillルールを適用する（自動セット／自動クリア）。
     // 「target列が空の場合のみ自動セット」「target列が自動セットした値のままの場合のみ自動クリア」という
@@ -1096,7 +1253,7 @@ self.addEventListener('fetch', function(e) {
     }
 
     // 現在アクティブなタブに設定されているoneShotFillルールを取得する（ルールがなければundefined）。
-    const getActiveOneShotFillRule = () => (TAB_COLUMN_OVERRIDES[App.activeTabId] || {}).oneShotFill;
+    const getActiveOneShotFillRule = () => (TAB_COLUMN_OVERRIDES[getActivePresetId()] || {}).oneShotFill;
 
     // selectPanelOption()でtype列がvalueに選択された「その瞬間だけ」、oneShotFillルールに
     // 合致する場合にtarget列へ既定値をセットする。autoFillと違って継続的な監視・抑制フラグは
@@ -1140,25 +1297,58 @@ self.addEventListener('fetch', function(e) {
     }
 
 
-    /* ── タブ定義 ──
-       columnsは下のループでtabIdごとに buildColumnsForTab(tabId) を使って自動的に割り当てる。
-       選択肢を変えたいだけなら、上のTAB_OPTIONSを書き換えればここは触らなくてよい。
+    /* ── プリセット定義（v1.07〜） ──
+       以前は「内部①・内部②…」の7タブが固定で常に存在していたが、v1.07からはこの7つを
+       「タブの元になる構成（プリセット）」として持つだけにし、実際に画面に表示されるタブ
+       （インスタンス）はマスターが「タブ管理」画面から自由に追加・削除・並び替えできるようにした。
+       - PRESET_DEFS: プリセットID→{ label（プリセットの名前）, columns（列構成） }
+       - PRESET_ORDER: 「タブを追加」プルダウンでの表示順（旧タブの並び順を踏襲）
+       選択肢・列構成自体はTAB_OPTIONS/TAB_COLUMN_OVERRIDESのままなので、
+       「このプリセットの選択肢を変えたい」という依頼は今までどおりそちらを書き換えるだけでよい。
     */
-    const TAB_DEFS = {
-      naibusonsho1:   { label: '内部①', storageKey: 'chosaApp_naibusonsho1' },
-      naibusonsho2:   { label: '内部②', storageKey: 'chosaApp_naibusonsho2' },
-      tategusonshoo1: { label: '建具①', storageKey: 'chosaApp_tategu1'      },
-      tategusonshoo2: { label: '建具②', storageKey: 'chosaApp_tategu2'      },
-      keishasoktei1:  { label: '傾斜①', storageKey: 'chosaApp_keishasok1'   },
-      keishasoktei2:  { label: '傾斜②', storageKey: 'chosaApp_keishasok2'   },
-      gaibusonsho:    { label: '外部',   storageKey: 'chosaApp_gaibusonsho'  },
+    const PRESET_DEFS = {
+      naibusonsho1:   { label: '内部(住宅)' },
+      naibusonsho2:   { label: '内部(店舗)' },
+      tategusonshoo1: { label: '建具(住宅)' },
+      tategusonshoo2: { label: '建具(店舗)' },
+      keishasoktei1:  { label: '傾斜(住宅)' },
+      keishasoktei2:  { label: '傾斜(店舗)' },
+      gaibusonsho:    { label: '外部'       },
     };
-    Object.keys(TAB_DEFS).forEach(tabId => {
-      TAB_DEFS[tabId].columns = buildColumnsForTab(tabId);
+    const PRESET_ORDER = ['naibusonsho1','naibusonsho2','tategusonshoo1','tategusonshoo2','keishasoktei1','keishasoktei2','gaibusonsho'];
+    Object.keys(PRESET_DEFS).forEach(presetId => {
+      PRESET_DEFS[presetId].columns = buildColumnsForTab(presetId);
     });
 
-    // 現在のタブの列定義を取得
-    const getColumns = () => TAB_DEFS[App.activeTabId].columns;
+    // 旧バージョン（v1.06以前）で固定タブが使っていたlocalStorageキー。
+    // マイグレーション（migrateLegacyTabsIfNeeded）・旧形式バックアップの読み込み（importBackupFile）で使う。
+    const LEGACY_STORAGE_KEYS = {
+      naibusonsho1:   'chosaApp_naibusonsho1',
+      naibusonsho2:   'chosaApp_naibusonsho2',
+      tategusonshoo1: 'chosaApp_tategu1',
+      tategusonshoo2: 'chosaApp_tategu2',
+      keishasoktei1:  'chosaApp_keishasok1',
+      keishasoktei2:  'chosaApp_keishasok2',
+      gaibusonsho:    'chosaApp_gaibusonsho',
+    };
+
+    // App.tabs（現在アクティブなタブのインスタンス配列）から、インスタンスID（=App.activeTabIdなどで使うタブID）
+    // を指定してインスタンス情報（{id, presetId, label, storageKey}）を取得する。見つからなければundefined。
+    const getTabInstance = id => App.tabs.find(t => t.id === id);
+
+    // 現在アクティブなタブが属するプリセットIDを取得する（TAB_OPTIONS/TAB_COLUMN_OVERRIDESの参照に使う）。
+    // タブが1つも無い場合はnullを返す。
+    function getActivePresetId() {
+      const inst = getTabInstance(App.activeTabId);
+      return inst ? inst.presetId : null;
+    }
+
+    // 現在のタブの列定義を取得（タブが無い場合は空配列を返す。呼び出し側はApp.activeTabIdがnullでない
+    // ことを確認してから使うのが基本だが、念のため空配列で安全側に倒す）
+    function getColumns() {
+      const presetId = getActivePresetId();
+      return presetId ? PRESET_DEFS[presetId].columns : [];
+    }
 
     // 列定義からselect系の列だけを抽出してパネルIDを組み立てる（panelMeisho, panelKakubu...）
     const PANEL_ID_OF = key => 'panel' + key[0].toUpperCase() + key.slice(1);
@@ -1181,7 +1371,15 @@ self.addEventListener('fetch', function(e) {
 
     /* ── アプリ全体の状態 ── */
     const App = {
-      activeTabId: 'naibusonsho1',
+      // 現在アクティブなタブの「インスタンスID」。タブが1つも無い状態ではnull。
+      activeTabId: null,
+      // 現在画面に表示されているタブのインスタンス配列（表示順）。
+      // 各要素: { id, presetId, label, storageKey }。localStorage（jtable_tabs_v2）に永続化する。
+      tabs: [],
+      // 削除済み（アーカイブ）のタブインスタンス配列。データ自体（storageKey）は消さずに残し、
+      // 「タブ管理」画面から復元・完全削除ができる。localStorage（jtable_deleted_tabs_v2）に永続化する。
+      // 各要素: tabsの各要素 + { deletedAt }
+      deletedTabs: [],
       tabDataCache: {},
       freqData: {},
       // 自由入力で確定した値を一時的に選択肢として保持する（タブID → 列キー → 値の配列）。
@@ -1220,7 +1418,7 @@ self.addEventListener('fetch', function(e) {
     function saveData(rowIndex, autoFillOptions) {
       if (rowIndex !== undefined && rowIndex !== null) applyAutoFillRule(getData()[rowIndex], autoFillOptions);
       const tabId = App.activeTabId;
-      const key = TAB_DEFS[tabId].storageKey;
+      const key = getTabInstance(tabId).storageKey;
 
       // アンドゥ用スタックに現在の状態（上書き前）を積む（件数の上限はなし）。
       // スタックはメモリ上のみ（リロードでリセット）。
@@ -1275,8 +1473,8 @@ self.addEventListener('fetch', function(e) {
       const tabId = App.activeTabId;
       const stack = App.undoStack[tabId] || [];
       if (stack.length === 0) return;
-      const label = TAB_DEFS[tabId].label;
-      const key = TAB_DEFS[tabId].storageKey;
+      const label = getTabInstance(tabId).label;
+      const key = getTabInstance(tabId).storageKey;
       // 戻す前の現在の内容を、やり直し（redo）用スタックへ積んでおく
       const current = localStorage.getItem(key);
       if (current !== null) {
@@ -1302,8 +1500,8 @@ self.addEventListener('fetch', function(e) {
       const tabId = App.activeTabId;
       const stack = App.redoStack[tabId] || [];
       if (stack.length === 0) return;
-      const label = TAB_DEFS[tabId].label;
-      const key = TAB_DEFS[tabId].storageKey;
+      const label = getTabInstance(tabId).label;
+      const key = getTabInstance(tabId).storageKey;
       // 進める前の現在の内容を、アンドゥ用スタックへ積んでおく
       const current = localStorage.getItem(key);
       if (current !== null) {
@@ -1339,7 +1537,7 @@ self.addEventListener('fetch', function(e) {
       el.classList.toggle('show', n > 0);
     }
     function updateAllTabBadges() {
-      Object.keys(TAB_DEFS).forEach(updateTabBadge);
+      App.tabs.forEach(t => updateTabBadge(t.id));
     }
 
     /* ── ドラム送り・ドラッグの状態 ── */
@@ -1355,6 +1553,11 @@ self.addEventListener('fetch', function(e) {
       isEdgeStart: false,
       animationId: null,
     };
+
+    // 行番号を有効範囲（0〜CONST.TOTAL_ROWS-1）に収める共通ヘルパー。
+    // animateToRow・handleDragEnd・navigateRowの3箇所で同じMath.max(0, Math.min(...))が
+    // 重複していたため、getMaxScrollLeft()と同じ方針で1つの関数に切り出した。
+    const clampRow = v => Math.max(0, Math.min(CONST.TOTAL_ROWS - 1, v));
 
     /* ── テンキーの状態 ── */
     const Numpad = {
@@ -1373,6 +1576,15 @@ self.addEventListener('fetch', function(e) {
 
     // 横スクロール用ラッパー参照（setupEventsで初期化）
     const scrollWrapper = document.getElementById('tableScrollWrapper');
+
+    // 直近にヘッダー・行のDOM（buildLayoutForActiveTab()・renderAllRows()）を実際に構築した
+    // タブのインスタンスID。App.tabDataCache（行データそのもののキャッシュ）とは別物で、
+    // 「画面（ヘッダー・行）が実際に組み立て済みかどうか」を判定するためだけに使う。
+    // renderTabBar()（タブ件数バッジの再計算）が副作用としてloadTabData()を呼ぶため、
+    // まだ画面を構築していないタブでもtabDataCacheには先にエントリができてしまうことがあり、
+    // tabDataCacheの有無だけでは「画面構築済みか」を正しく判定できなかった
+    // （v1.10までタブ追加直後にヘッダー・行が空白になる不具合の原因。詳細はHANDOVER_NOTES参照）。
+    let lastRenderedTabId = null;
 
     // 自動横スクロール（scrollToNextColumn・settleAtRowの左端リセット）のアニメーションID。
     // 手動ドラッグ・ホイール操作など、ユーザー自身が横スクロールを始めた場合は
@@ -1402,6 +1614,11 @@ self.addEventListener('fetch', function(e) {
       hScrollAnimId = requestAnimationFrame(step);
     }
 
+    // テーブルの横スクロールにおける「右端」の位置（scrollLeftの最大値）を計算する共通ヘルパー。
+    // scrollToNextColumn()・scrollToRightEnd()の2箇所で同じ計算式（scrollWidth - clientWidth）が
+    // 重複していたため、calcTriggerH()等と同じ方針で1つの関数に切り出した。
+    const getMaxScrollLeft = () => scrollWrapper.scrollWidth - scrollWrapper.clientWidth;
+
     // ユーザーが手動でスクロール操作（ドラッグ・ホイール）を始めた場合、進行中の自動横スクロール
     // アニメーションを止める（自動スクロールが手動操作を上書きしてしまわないようにするため）。
     function cancelAutoHScroll() {
@@ -1411,11 +1628,10 @@ self.addEventListener('fetch', function(e) {
     // 右側ツールバーの「▶ 右端に」ボタン：横スクロールを1タップで右端まで進める。
     // 他の自動横スクロール（scrollToNextColumn・settleAtRowの左端リセット）と同じanimateScrollLeft()を
     // 使っているため、瞬間移動（ワープ）ではなく同じ質感の滑らかなアニメーションで動く。
-    // 右端の位置は scrollWidth - clientWidth（scrollToNextColumn内のmaxScrollLeftと同じ計算式）。
+    // 右端の位置はgetMaxScrollLeft()（scrollToNextColumn内と共通の計算式）で求める。
     // すでに右端にいる場合はanimateScrollLeft()側の差分チェック（diff === 0）により何もしない。
     function scrollToRightEnd() {
-      const maxScrollLeft = scrollWrapper.scrollWidth - scrollWrapper.clientWidth;
-      animateScrollLeft(maxScrollLeft);
+      animateScrollLeft(getMaxScrollLeft());
     }
 
 
@@ -1451,7 +1667,7 @@ self.addEventListener('fetch', function(e) {
     //   → 「データ消失の可能性あり」として記録するのみ（このタブはまだ空のまま読み込む）。
     //     実際に復元するかどうかはinit完了後、マスターに復元確認ダイアログで判断してもらう。
     function resolveStoredRows(tabId) {
-      const key = TAB_DEFS[tabId].storageKey;
+      const key = getTabInstance(tabId).storageKey;
       const raw = localStorage.getItem(key);
       if (raw) {
         try { return JSON.parse(raw); }
@@ -1482,7 +1698,9 @@ self.addEventListener('fetch', function(e) {
 
     function loadTabData(tabId) {
       if (App.tabDataCache[tabId]) return App.tabDataCache[tabId];
-      const columns = TAB_DEFS[tabId].columns;
+      const inst = getTabInstance(tabId);
+      if (!inst) return [];
+      const columns = PRESET_DEFS[inst.presetId].columns;
       const defs = fieldDefsOf(columns);
       const src = resolveStoredRows(tabId);
       App.tabDataCache[tabId] = Array.from({ length: CONST.TOTAL_ROWS }, (_, i) => {
@@ -1511,6 +1729,7 @@ self.addEventListener('fetch', function(e) {
       App.activeTabId = tabId;
       buildLayoutForActiveTab();
       renderAllRows(); updateRowInfo(); updateUndoRedoBtns();
+      lastRenderedTabId = tabId;
     }
 
     // タブ本体（.tab-btn）より上に外れたタップでもタブ切り替えが反応するよう、各タブの実際の
@@ -1534,6 +1753,22 @@ self.addEventListener('fetch', function(e) {
         zone.addEventListener('click', () => switchTab(btn.dataset.tab));
         layer.appendChild(zone);
       });
+      // タブ管理ボタン（.tab-manage-btn）も同じ理由（header-topのoverflow:hiddenによる死角）で
+      // 上端付近のタップが反応しづらくなりうるため、同じ仕組みで当たり判定を拡張する。
+      const mgrBtn = document.querySelector('.tab-manage-btn');
+      if (mgrBtn) {
+        const rect = mgrBtn.getBoundingClientRect();
+        if (rect.top > 0 && rect.width > 0) {
+          const zone = document.createElement('div');
+          zone.className = 'tab-tap-extend-zone';
+          zone.style.left   = `${rect.left}px`;
+          zone.style.width  = `${rect.width}px`;
+          zone.style.top    = '0px';
+          zone.style.height = `${rect.top}px`;
+          zone.addEventListener('click', openTabManager);
+          layer.appendChild(zone);
+        }
+      }
     }
 
     /* ── レイアウト構築（columns定義から、列幅グリッド・ヘッダー・選択パネルを組み立てる） ──
@@ -1906,7 +2141,7 @@ self.addEventListener('fetch', function(e) {
       // 戻ってから目的の行へ動き出すように見えてしまっていた（ガチャリと吸い付く感触が失われていた）。
       const startOff  = Drum.dragOffset;
       if (Drum.animationId) cancelAnimationFrame(Drum.animationId);
-      target = Math.max(0, Math.min(CONST.TOTAL_ROWS - 1, target));
+      target = clampRow(target);
       const targetOff = (target - Drum.currentRow) * Drum.rowHeight;
       const t0 = performance.now();
       function step(now) {
@@ -2055,8 +2290,7 @@ self.addEventListener('fetch', function(e) {
       if (!Drum.isDragging) return;
       Drum.isDragging = false;
       if (!Drum.isVerticalDrag) return;
-      const next = Math.max(0, Math.min(CONST.TOTAL_ROWS - 1,
-        Drum.currentRow + Math.round((Drum.dragOffset + Drum.velocity * 5) / Drum.rowHeight)));
+      const next = clampRow(Drum.currentRow + Math.round((Drum.dragOffset + Drum.velocity * 5) / Drum.rowHeight));
       Drum.targetRow = next;
       animateToRow(next);
     }
@@ -2072,7 +2306,7 @@ self.addEventListener('fetch', function(e) {
     // 連打対応: 目標行を累積管理（Drum.targetRowはDrumオブジェクト定義時に初期化済み）
 
     function navigateRow(dir) {
-      Drum.targetRow = Math.max(0, Math.min(CONST.TOTAL_ROWS - 1, Drum.targetRow + dir));
+      Drum.targetRow = clampRow(Drum.targetRow + dir);
       animateToRow(Drum.targetRow);
     }
 
@@ -2350,7 +2584,7 @@ self.addEventListener('fetch', function(e) {
       if (!cell) return;
       const cellWidth = cell.getBoundingClientRect().width;
       // すでに右端まで行っている場合はスクロールしない
-      const maxScrollLeft = scrollWrapper.scrollWidth - scrollWrapper.clientWidth;
+      const maxScrollLeft = getMaxScrollLeft();
       if (scrollWrapper.scrollLeft >= maxScrollLeft) return;
       // ワープ（瞬間移動）ではなく、animateScrollLeft()で滑らかに動かす。
       animateScrollLeft(Math.min(scrollWrapper.scrollLeft + cellWidth, maxScrollLeft));
@@ -2623,13 +2857,18 @@ self.addEventListener('fetch', function(e) {
     };
     const toExportHalfWidth = value => EXPORT_HALFWIDTH_MAP[value] || value;
 
-    // 全タブ・全行の入力内容をJSON形式のバックアップファイルとしてダウンロードする。
-    // 「保存（Excel出力）」のたび・「全削除」の直前に、自動で呼び出される（ボタン操作は無し）。
+    // 全タブ（現在アクティブなタブ＋削除済みアーカイブの両方）・全行の入力内容をJSON形式の
+    // バックアップファイルとしてダウンロードする。「保存（Excel出力）」のたび・「全削除」の直前に、
+    // 自動で呼び出される（ボタン操作は無し）。
+    // v1.07〜: タブ構成（App.tabs・App.deletedTabs）自体もタブごとの入力データも失われないよう、
+    // フォーマットをv1（{tabs:{プリセットID:行データ}}）からv2（{activeTabs, deletedTabs, data:{storageKey:行データ}}）に変更した。
+    // 旧v1形式のファイルは importBackupFile() 側で引き続き読み込める（後方互換）。
     function createJsonBackupFile() {
-      const payload = { app: 'jtable', exportedAt: new Date().toISOString(), tabs: {} };
-      Object.keys(TAB_DEFS).forEach(tabId => {
-        const raw = localStorage.getItem(TAB_DEFS[tabId].storageKey);
-        payload.tabs[tabId] = raw ? JSON.parse(raw) : [];
+      const payload = { app: 'jtable', version: 2, exportedAt: new Date().toISOString(), activeTabs: App.tabs, deletedTabs: App.deletedTabs, data: {} };
+      const allKeys = new Set([...App.tabs.map(t => t.storageKey), ...App.deletedTabs.map(t => t.storageKey)]);
+      allKeys.forEach(key => {
+        const raw = localStorage.getItem(key);
+        payload.data[key] = raw ? JSON.parse(raw) : [];
       });
       const json = JSON.stringify(payload);
       // iOSのSafariは application/json をブラウザ上でテキスト表示してしまう（ファイル保存にならない）ため、
@@ -2650,12 +2889,13 @@ self.addEventListener('fetch', function(e) {
     }
 
     function exportToExcel() {
+      if (App.tabs.length === 0) { showToast('タブがありません。タブ管理からタブを追加してください'); return; }
       if (typeof XLSX === 'undefined') { showToast('XLSX library not loaded'); return; }
 
-      function tabRows(tabId) {
-        const columns = TAB_DEFS[tabId].columns;
+      function tabRows(inst) {
+        const columns = PRESET_DEFS[inst.presetId].columns;
         const { fieldPlan } = buildExportSpec(columns);
-        const rows = loadTabData(tabId);
+        const rows = loadTabData(inst.id);
 
         let lastIdx = -1;
         rows.forEach((d, i) => {
@@ -2678,29 +2918,24 @@ self.addEventListener('fetch', function(e) {
 
       const sheetData = {}, merges = [];
       let colOffset = 0;
-      Object.keys(TAB_DEFS).forEach(tabId => {
-        const { headers, widths } = buildExportSpec(TAB_DEFS[tabId].columns);
-        const dataRows = tabRows(tabId);
-        sheetData[`0,${colOffset}`] = `[${TAB_DEFS[tabId].label}]`;
+      const colsSpec = [];
+      App.tabs.forEach(inst => {
+        const { headers, widths } = buildExportSpec(PRESET_DEFS[inst.presetId].columns);
+        const dataRows = tabRows(inst);
+        // シート上の見出しは、プリセット名ではなくインスタンスの表示名（マスターが編集できる）を使う。
+        // 同じプリセットを複数タブ追加した場合でも、それぞれの名前で区別できるようにするため。
+        sheetData[`0,${colOffset}`] = `[${inst.label}]`;
         merges.push({ s:{r:0,c:colOffset}, e:{r:0,c:colOffset+headers.length-1} });
         headers.forEach((h, ci) => { sheetData[`1,${colOffset+ci}`] = h; });
         dataRows.forEach((row, ri) => row.forEach((v, ci) => { sheetData[`${2+ri},${colOffset+ci}`] = v; }));
         colOffset += headers.length + 1;
-        TAB_DEFS[tabId]._exportWidths = widths; // !cols算出用に一時保持
+        widths.forEach(w => colsSpec.push({ wch: w }));
+        colsSpec.push({ wch: 3 }); // タブ間の区切り列
       });
 
       const maxRow = Math.max(...Object.keys(sheetData).map(k => parseInt(k))) + 1;
       const aoa    = Array.from({ length: maxRow }, (_, r) =>
         Array.from({ length: colOffset }, (_, c) => sheetData[`${r},${c}`] ?? ''));
-
-      // !cols（列幅）をタブごとのヘッダー数に合わせて連結する
-      const colsSpec = [];
-      Object.keys(TAB_DEFS).forEach(tabId => {
-        const widths = TAB_DEFS[tabId]._exportWidths;
-        widths.forEach(w => colsSpec.push({ wch: w }));
-        colsSpec.push({ wch: 3 }); // タブ間の区切り列
-        delete TAB_DEFS[tabId]._exportWidths;
-      });
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -2744,6 +2979,30 @@ self.addEventListener('fetch', function(e) {
       document.getElementById('backupFileInput').click();
     }
 
+    // インポート完了後に共通で行う再描画処理（v2形式・旧v1形式どちらの復元でも使う）
+    function afterTabsReplaced() {
+      App.tabDataCache = {};
+      App.activeTabId = App.tabs.length > 0 ? App.tabs[0].id : null;
+      renderTabBar();
+      updateEmptyStateVisibility();
+      if (App.activeTabId) {
+        App.tabs.forEach(t => loadTabData(t.id));
+        updateAllTabBadges();
+        buildLayoutForActiveTab();
+        calculateDimensions();
+        updateColumnWidths();
+        renderAllRows();
+        Drum.currentRow = 0; Drum.targetRow = 0; Drum.dragOffset = 0;
+        scrollWrapper.scrollLeft = 0;
+        document.getElementById('tableHeaderWrapper').scrollLeft = 0;
+        updateRowInfo();
+        updateTabTapZones();
+        lastRenderedTabId = App.activeTabId;
+      }
+      updateUndoRedoBtns();
+      App.hasUnsavedChanges = false; // 復元直後はファイルの内容そのものなので、未保存扱いにはしない
+    }
+
     function importBackupFile(event) {
       const file = event.target.files[0];
       event.target.value = ''; // 同じファイルを連続で選び直しても変更イベントが発生するようにリセット
@@ -2753,21 +3012,42 @@ self.addEventListener('fetch', function(e) {
         let data;
         try { data = JSON.parse(reader.result); }
         catch (e) { showToast('ファイルの読み込みに失敗しました'); return; }
-        if (!data || typeof data.tabs !== 'object') { showToast('バックアップファイルの形式が正しくありません'); return; }
-        const validTabIds = Object.keys(TAB_DEFS).filter(id => Array.isArray(data.tabs[id]));
-        if (validTabIds.length === 0) { showToast('復元できるデータが見つかりませんでした'); return; }
-        const ok = await showConfirm('現在の入力内容を上書きして復元します。よろしいですか？', '復元する');
-        if (!ok) return;
-        validTabIds.forEach(tabId => {
-          localStorage.setItem(TAB_DEFS[tabId].storageKey, JSON.stringify(data.tabs[tabId]));
-          delete App.tabDataCache[tabId]; // キャッシュを破棄し、次回参照時に復元後の内容で再読込させる
-        });
-        Object.keys(TAB_DEFS).forEach(loadTabData);
-        updateAllTabBadges();
-        buildLayoutForActiveTab();
-        renderAllRows();
-        App.hasUnsavedChanges = false; // 復元直後はファイルの内容そのものなので、未保存扱いにはしない
-        showToast('バックアップから復元しました');
+        if (!data) { showToast('バックアップファイルの形式が正しくありません'); return; }
+
+        // v2形式（activeTabs/deletedTabs/dataを持つ、v1.07〜のバックアップ）
+        if (Array.isArray(data.activeTabs)) {
+          const ok = await showConfirm('現在のタブ構成・入力内容を上書きして復元します。よろしいですか？', '復元する');
+          if (!ok) return;
+          Object.keys(data.data || {}).forEach(key => {
+            localStorage.setItem(key, JSON.stringify(data.data[key]));
+          });
+          App.tabs = data.activeTabs;
+          App.deletedTabs = Array.isArray(data.deletedTabs) ? data.deletedTabs : [];
+          persistTabs(); persistDeletedTabs();
+          afterTabsReplaced();
+          showToast('バックアップから復元しました');
+          return;
+        }
+
+        // v1形式（旧バージョン、{tabs:{プリセットID:行データ}}）の後方互換読み込み。
+        // 各プリセットを新規タブインスタンスとして作り直す（従来のタブ順で復元）。
+        if (data.tabs && typeof data.tabs === 'object') {
+          const validPresetIds = PRESET_ORDER.filter(id => Array.isArray(data.tabs[id]));
+          if (validPresetIds.length === 0) { showToast('復元できるデータが見つかりませんでした'); return; }
+          const ok = await showConfirm('現在のタブ構成・入力内容を上書きして復元します（旧形式のバックアップです）。よろしいですか？', '復元する');
+          if (!ok) return;
+          App.tabs = validPresetIds.map(presetId => {
+            const storageKey = LEGACY_STORAGE_KEYS[presetId];
+            localStorage.setItem(storageKey, JSON.stringify(data.tabs[presetId]));
+            return { id: 'legacy_' + presetId, presetId, label: PRESET_DEFS[presetId].label, storageKey };
+          });
+          persistTabs();
+          afterTabsReplaced();
+          showToast('旧形式のバックアップから復元しました');
+          return;
+        }
+
+        showToast('バックアップファイルの形式が正しくありません');
       };
       reader.onerror = () => showToast('ファイルの読み込みに失敗しました');
       reader.readAsText(file);
@@ -2777,6 +3057,7 @@ self.addEventListener('fetch', function(e) {
        ヘッダーの「🗑 全削除」ボタンから呼び出す。元に戻せない操作のため、必ず確認を取る。
        さらに「保存（Excel出力）」がまだ行われていない入力内容がある場合は、追加でもう一度確認する。 */
     async function confirmDeleteAll() {
+      if (App.tabs.length === 0) { showToast('タブがありません'); return; }
       const ok1 = await showConfirm('削除する前にJSONバックアップファイルを自動で保存します。全タブの入力内容をすべて削除します。この操作は元に戻せません。よろしいですか？', '削除する');
       if (!ok1) return;
       if (App.hasUnsavedChanges) {
@@ -2786,21 +3067,23 @@ self.addEventListener('fetch', function(e) {
       performDeleteAll();
     }
 
+    // 全削除は「タブ自体」ではなく「各タブの入力内容（行データ）」のみを消去する
+    // （タブの追加・削除自体はタブ管理から行う操作のため、この機能では触らない）。
+    // アーカイブ（削除済みタブ）のデータには影響しない。
     function performDeleteAll() {
       createJsonBackupFile(); // 削除前の内容を最後の保険として自動でバックアップしておく
-      Object.keys(TAB_DEFS).forEach(tabId => {
-        const key = TAB_DEFS[tabId].storageKey;
+      App.tabs.forEach(t => {
+        const key = t.storageKey;
         localStorage.removeItem(key);
         localStorage.removeItem(key + '_bak'); // ローリングバックアップも消さないと、次回起動時に復元確認が出てしまう
-        delete App.tabDataCache[tabId];
+        delete App.tabDataCache[t.id];
       });
       clearAllTempOptions();
       App.undoStack = {}; // アンドゥ履歴も全クリア（全削除後に「戻す」で復活しないよう）
       App.redoStack = {}; // やり直し履歴も同様に全クリア
-      Object.keys(TAB_DEFS).forEach(loadTabData);
+      App.tabs.forEach(t => loadTabData(t.id));
       updateAllTabBadges();
-      buildLayoutForActiveTab();
-      renderAllRows();
+      if (App.activeTabId) { buildLayoutForActiveTab(); renderAllRows(); }
       updateUndoRedoBtns();
       App.hasUnsavedChanges = false;
       showToast('バックアップを保存し、全データを削除しました');
@@ -2883,11 +3166,11 @@ self.addEventListener('fetch', function(e) {
          → 上書きしてよいか分からないため、ダイアログで確認してから復元する */
     function notifyStartupRecoveryStatus() {
       if (App.autoRecoveredTabs.length > 0) {
-        const labels = App.autoRecoveredTabs.map(id => TAB_DEFS[id].label).join('・');
+        const labels = App.autoRecoveredTabs.map(id => (getTabInstance(id) || {}).label || id).join('・');
         showToast(`データの異常を検知し、直前の保存内容から自動復旧しました（${labels}）`);
       }
       if (App.possibleLostTabs.length > 0) {
-        const labels = App.possibleLostTabs.map(id => TAB_DEFS[id].label).join('・');
+        const labels = App.possibleLostTabs.map(id => (getTabInstance(id) || {}).label || id).join('・');
         document.getElementById('restorePromptText').textContent =
           `保存されていたはずのデータ（${labels}）が見つかりませんでした。直前の保存内容のバックアップが残っています。復元しますか？`;
         document.getElementById('restorePromptOverlay').classList.add('show');
@@ -2896,16 +3179,17 @@ self.addEventListener('fetch', function(e) {
 
     function applyRollingRestore() {
       App.possibleLostTabs.forEach(tabId => {
-        const bak = localStorage.getItem(TAB_DEFS[tabId].storageKey + '_bak');
+        const inst = getTabInstance(tabId);
+        if (!inst) return;
+        const bak = localStorage.getItem(inst.storageKey + '_bak');
         if (!bak) return;
-        localStorage.setItem(TAB_DEFS[tabId].storageKey, bak);
+        localStorage.setItem(inst.storageKey, bak);
         delete App.tabDataCache[tabId];
       });
-      Object.keys(TAB_DEFS).forEach(loadTabData);
+      App.tabs.forEach(t => loadTabData(t.id));
       App.possibleLostTabs = [];
       updateAllTabBadges();
-      buildLayoutForActiveTab();
-      renderAllRows();
+      if (App.activeTabId) { buildLayoutForActiveTab(); renderAllRows(); }
       document.getElementById('restorePromptOverlay').classList.remove('show');
       showToast('バックアップから復元しました');
     }
@@ -2913,6 +3197,331 @@ self.addEventListener('fetch', function(e) {
     function dismissRollingRestore() {
       App.possibleLostTabs = [];
       document.getElementById('restorePromptOverlay').classList.remove('show');
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       ── タブ管理システム（v1.07〜） ──
+       以前は「内部①・内部②…」の7タブが固定で常に表示されていたが、v1.07からは
+       PRESET_DEFS（7つのプリセット）を元に、マスターが「タブ管理」画面から自由に
+       タブを追加・削除・並び替え・改名できるようにした。
+       - App.tabs        : 現在画面に表示されているタブ（インスタンス）の配列（表示順）
+       - App.deletedTabs : 削除したタブのアーカイブ（データは消さずに残す。復元・完全削除ができる）
+       それぞれ localStorage の jtable_tabs_v2 / jtable_deleted_tabs_v2 に永続化する。
+       ══════════════════════════════════════════════════════════════ */
+
+    function persistTabs() { localStorage.setItem('jtable_tabs_v2', JSON.stringify(App.tabs)); }
+    function persistDeletedTabs() { localStorage.setItem('jtable_deleted_tabs_v2', JSON.stringify(App.deletedTabs)); }
+
+    // 新しいタブインスタンス用の一意なIDを発行する（localStorageに連番カウンタを保持し、
+    // アプリを再起動してもIDが重複しないようにする）。
+    function nextTabInstanceId() {
+      const n = (parseInt(localStorage.getItem('jtable_tab_id_seq'), 10) || 0) + 1;
+      localStorage.setItem('jtable_tab_id_seq', String(n));
+      return 't' + n;
+    }
+
+    // v1.06以前（固定7タブ）からv1.07（自由に追加・削除できるタブ）への一度きりの移行処理。
+    // 「タブ一覧は空の状態から始め、既存の入力データは消さずアーカイブに登録しておき、
+    //  マスターが手動でタブ管理から復元・追加する」という方針（マスターとの合意事項）に基づく。
+    // 実データ（localStorageの各キー）自体は一切移動・変更しない。アーカイブへの登録のみ行う。
+    function migrateLegacyTabsIfNeeded() {
+      if (localStorage.getItem('jtable_migrated_v2') === 'true') return;
+      Object.keys(LEGACY_STORAGE_KEYS).forEach(presetId => {
+        const key = LEGACY_STORAGE_KEYS[presetId];
+        if (localStorage.getItem(key) !== null) {
+          App.deletedTabs.push({
+            id: 'legacy_' + presetId,
+            presetId,
+            label: PRESET_DEFS[presetId].label,
+            storageKey: key,
+            deletedAt: new Date().toISOString(),
+          });
+        }
+      });
+      localStorage.setItem('jtable_migrated_v2', 'true');
+      persistTabs();
+      persistDeletedTabs();
+    }
+
+    // 起動時、タブ一覧・アーカイブをlocalStorageから読み込む（init()から呼ぶ）。
+    function loadTabsState() {
+      try { App.tabs = JSON.parse(localStorage.getItem('jtable_tabs_v2') || '[]'); } catch (e) { App.tabs = []; }
+      try { App.deletedTabs = JSON.parse(localStorage.getItem('jtable_deleted_tabs_v2') || '[]'); } catch (e) { App.deletedTabs = []; }
+      migrateLegacyTabsIfNeeded();
+    }
+
+    // タブバー（画面上部のタブ切り替えボタン）をApp.tabsの内容から再構築する。
+    // タブの追加・削除・並び替え・改名のたびに呼び出す。
+    function renderTabBar() {
+      const bar = document.getElementById('tabBar');
+      bar.innerHTML = App.tabs.map(t => `
+        <button class="tab-btn${t.id === App.activeTabId ? ' active' : ''}" data-tab="${t.id}" onclick="switchTab('${t.id}')">
+          <span class="tab-label">${escHtml(t.label)}</span>
+          <span class="tab-data-badge" id="badge_${t.id}"></span>
+        </button>`).join('');
+      updateAllTabBadges();
+      requestAnimationFrame(updateTabTapZones);
+    }
+
+    // タブが1つも無い場合、テーブル領域を通常のドラム表示から案内表示に切り替える。
+    function updateEmptyStateVisibility() {
+      const empty = App.tabs.length === 0;
+      document.getElementById('tableEmptyState').style.display = empty ? 'flex' : 'none';
+      document.getElementById('tableHeaderWrapper').style.display = empty ? 'none' : '';
+      document.getElementById('tableScrollWrapper').style.display = empty ? 'none' : '';
+    }
+
+    /* ── タブ管理モーダルの開閉 ── */
+    function openTabManager() {
+      renderTabManagerLists();
+      renderTabManagerPresetOptions();
+      document.getElementById('tabMgrOverlay').classList.add('show');
+    }
+    function closeTabManager() {
+      document.getElementById('tabMgrOverlay').classList.remove('show');
+    }
+
+    // プリセットのプルダウン（PRESET_ORDER順）を組み立てる
+    function renderTabManagerPresetOptions() {
+      const select = document.getElementById('tabMgrPresetSelect');
+      select.innerHTML = PRESET_ORDER.map(id => `<option value="${id}">${escHtml(PRESET_DEFS[id].label)}</option>`).join('');
+    }
+
+    // 「現在のタブ」一覧・「削除済み（アーカイブ）」一覧の両方を再描画する
+    function renderTabManagerLists() {
+      const activeList = document.getElementById('tabMgrActiveList');
+      if (App.tabs.length === 0) {
+        activeList.innerHTML = '<div class="tabmgr-empty">タブがありません。下のプルダウンから追加してください</div>';
+      } else {
+        activeList.innerHTML = App.tabs.map(t => `
+          <div class="tabmgr-item" data-id="${t.id}">
+            <span class="tabmgr-drag-handle">☰</span>
+            <div class="tabmgr-item-main" onclick="renameTabInstance('${t.id}')">
+              <span class="tabmgr-item-label">${escHtml(t.label)}</span>
+              <span class="tabmgr-item-preset">${escHtml(PRESET_DEFS[t.presetId].label)}</span>
+            </div>
+            <button class="tabmgr-del-btn" onclick="deleteActiveTabInstance('${t.id}')">✕</button>
+          </div>`).join('');
+        setupTabMgrDragReorder();
+      }
+
+      const archiveList = document.getElementById('tabMgrArchiveList');
+      if (App.deletedTabs.length === 0) {
+        archiveList.innerHTML = '<div class="tabmgr-empty">削除済みのタブはありません</div>';
+      } else {
+        // 新しく削除されたものほど上に表示する
+        archiveList.innerHTML = [...App.deletedTabs].reverse().map(t => `
+          <div class="tabmgr-item tabmgr-archive-item">
+            <div class="tabmgr-item-main">
+              <span class="tabmgr-item-label">${escHtml(t.label)}</span>
+              <span class="tabmgr-item-preset">${escHtml(PRESET_DEFS[t.presetId].label)}</span>
+            </div>
+            <div class="tabmgr-archive-btns">
+              <button class="tabmgr-restore-btn" onclick="restoreArchivedTab('${t.id}')">復元</button>
+              <button class="tabmgr-purge-btn" onclick="purgeArchivedTab('${t.id}')">完全に削除</button>
+            </div>
+          </div>`).join('');
+      }
+    }
+
+    // 「タブを追加」プルダウン＋追加ボタン。同じプリセットの削除履歴（直近1件）があれば、
+    // 復元するか空の状態で新しく追加するかを確認してから処理する。
+    async function addTabFromPreset() {
+      const presetId = document.getElementById('tabMgrPresetSelect').value;
+      if (!presetId || !PRESET_DEFS[presetId]) return;
+      const candidates = App.deletedTabs.filter(t => t.presetId === presetId);
+      if (candidates.length > 0) {
+        const toRestore = candidates[candidates.length - 1]; // 直近に削除した1件
+        const ok = await showConfirm(
+          `以前削除した「${toRestore.label}」のデータが見つかりました。復元しますか？（「新規で追加」を選ぶと空の状態で追加します）`,
+          '復元する', '新規で追加'
+        );
+        if (ok) {
+          App.deletedTabs = App.deletedTabs.filter(t => t !== toRestore);
+          App.tabs.push({ id: toRestore.id, presetId: toRestore.presetId, label: toRestore.label, storageKey: toRestore.storageKey });
+          persistTabs(); persistDeletedTabs();
+          finishTabListChange(`「${toRestore.label}」を復元しました`);
+          return;
+        }
+      }
+      const preset = PRESET_DEFS[presetId];
+      const id = nextTabInstanceId();
+      const storageKey = 'chosaApp_inst_' + id;
+      App.tabs.push({ id, presetId, label: preset.label, storageKey });
+      persistTabs();
+      finishTabListChange(`「${preset.label}」を追加しました`);
+    }
+
+    // 現在アクティブなタブを削除する（データはアーカイブに残る。実データは消さない）。
+    async function deleteActiveTabInstance(id) {
+      const inst = getTabInstance(id);
+      if (!inst) return;
+      const ok = await showConfirm(`「${inst.label}」を削除します。入力内容はアーカイブに残り、後から復元できます。よろしいですか？`, '削除する');
+      if (!ok) return;
+      App.tabs = App.tabs.filter(t => t.id !== id);
+      App.deletedTabs.push({ id: inst.id, presetId: inst.presetId, label: inst.label, storageKey: inst.storageKey, deletedAt: new Date().toISOString() });
+      delete App.tabDataCache[id];
+      delete App.undoStack[id];
+      delete App.redoStack[id];
+      persistTabs(); persistDeletedTabs();
+      if (App.activeTabId === id) App.activeTabId = App.tabs.length > 0 ? App.tabs[0].id : null;
+      finishTabListChange(`「${inst.label}」を削除しました`);
+    }
+
+    // アーカイブから直接復元する（「タブを追加」のプリセット選択を介さず、一覧から直接選べる）。
+    function restoreArchivedTab(id) {
+      const inst = App.deletedTabs.find(t => t.id === id);
+      if (!inst) return;
+      App.deletedTabs = App.deletedTabs.filter(t => t.id !== id);
+      App.tabs.push({ id: inst.id, presetId: inst.presetId, label: inst.label, storageKey: inst.storageKey });
+      persistTabs(); persistDeletedTabs();
+      finishTabListChange(`「${inst.label}」を復元しました`);
+    }
+
+    // アーカイブから完全に削除する（実データ・ローリングバックアップごと消去。元に戻せない）。
+    async function purgeArchivedTab(id) {
+      const inst = App.deletedTabs.find(t => t.id === id);
+      if (!inst) return;
+      const ok = await showConfirm(`「${inst.label}」のデータを完全に削除します。元に戻せません。よろしいですか？`, '完全に削除する');
+      if (!ok) return;
+      localStorage.removeItem(inst.storageKey);
+      localStorage.removeItem(inst.storageKey + '_bak');
+      App.deletedTabs = App.deletedTabs.filter(t => t.id !== id);
+      persistDeletedTabs();
+      renderTabManagerLists();
+      showToast(`「${inst.label}」を完全に削除しました`);
+    }
+
+    // タブ名の編集（タブ管理一覧の項目タップで開く）
+    async function renameTabInstance(id) {
+      const inst = getTabInstance(id);
+      if (!inst) return;
+      const result = await showTextPrompt('タブ名を編集', inst.label);
+      if (result === null) return;
+      const trimmed = result.trim();
+      if (!trimmed) return;
+      inst.label = trimmed;
+      persistTabs();
+      finishTabListChange();
+    }
+
+    // タブ追加・削除・復元・改名のたびに行う共通の再描画処理。
+    function finishTabListChange(toastMsg) {
+      // タブが1つも無い状態から追加・復元された場合、自動的にそのタブをアクティブにする
+      if (!App.activeTabId && App.tabs.length > 0) App.activeTabId = App.tabs[0].id;
+      renderTabManagerLists();
+      renderTabBar(); // ← この中でupdateAllTabBadges()が全タブ分loadTabData()を呼ぶため、
+                       //   tabDataCacheの有無では「画面構築済みか」を判定できない（下記参照）
+      updateEmptyStateVisibility();
+      // 現在アクティブなタブの画面（ヘッダー・行）がまだ構築されていない場合のみ、新規に構築する。
+      // 判定にはtabDataCache（行データのキャッシュ）ではなくlastRenderedTabIdを使う。
+      // renderTabBar()が呼ぶupdateAllTabBadges()は全タブ分loadTabData()を実行するため、
+      // 「まだ画面を作っていない新しいタブ」でもtabDataCacheには先にエントリができてしまい、
+      // tabDataCacheの有無で判定すると常に「構築済み」と誤判定してしまう
+      // （v1.10まで、タブ追加直後にヘッダー・行が空白のままになる不具合の原因だった）。
+      if (App.activeTabId && App.activeTabId !== lastRenderedTabId) {
+        loadTabData(App.activeTabId);
+        buildLayoutForActiveTab();
+        calculateDimensions();
+        updateColumnWidths();
+        renderAllRows();
+        Drum.currentRow = 0; Drum.targetRow = 0; Drum.dragOffset = 0;
+        scrollWrapper.scrollLeft = 0;
+        document.getElementById('tableHeaderWrapper').scrollLeft = 0;
+        updateRowInfo();
+        updateUndoRedoBtns();
+        updateTabTapZones();
+        lastRenderedTabId = App.activeTabId;
+      } else if (App.activeTabId) {
+        updateTabBadge(App.activeTabId);
+      }
+      if (toastMsg) showToast(toastMsg);
+    }
+
+    /* ── タブ管理一覧のドラッグ並び替え（Pointer Events） ──
+       行の「☰」ハンドルを掴んで上下にドラッグすると、指の位置に応じて配列（App.tabs）の
+       並び順をその場で入れ替える。指を離した時点でlocalStorageに保存し、メインのタブバーにも反映する。
+       この並び替えはタブ管理モーダル内だけで完結しており、メインテーブルの縦ドラッグ（Drum）とは
+       別のシンプルな実装（順序の入れ替えのみ、慣性やスナップアニメーションは持たない）。 */
+    function setupTabMgrDragReorder() {
+      const list = document.getElementById('tabMgrActiveList');
+      let dragEl = null, dragId = null, startY = 0, startTop = 0;
+
+      list.querySelectorAll('.tabmgr-drag-handle').forEach(handle => {
+        handle.onpointerdown = e => {
+          e.preventDefault();
+          dragEl = handle.closest('.tabmgr-item');
+          dragId = dragEl.dataset.id;
+          startY = e.clientY;
+          startTop = dragEl.offsetTop;
+          dragEl.classList.add('dragging');
+          dragEl.setPointerCapture(e.pointerId);
+          handle.onpointermove = onMove;
+          handle.onpointerup = handle.onpointercancel = onUp;
+
+          function onMove(ev) {
+            if (!dragEl) return;
+            const dy = ev.clientY - startY;
+            dragEl.style.transform = `translateY(${dy}px)`;
+            // ドラッグ中の要素の中心位置から、現在どの項目の上に重なっているかを判定して入れ替える
+            const items = [...list.querySelectorAll('.tabmgr-item')];
+            const dragCenter = startTop + dy + dragEl.offsetHeight / 2;
+            const overEl = items.find(it => {
+              if (it === dragEl) return false;
+              const top = it.offsetTop;
+              return dragCenter > top && dragCenter < top + it.offsetHeight;
+            });
+            if (overEl) {
+              const fromIdx = App.tabs.findIndex(t => t.id === dragId);
+              const toIdx   = App.tabs.findIndex(t => t.id === overEl.dataset.id);
+              if (fromIdx !== -1 && toIdx !== -1) {
+                const [moved] = App.tabs.splice(fromIdx, 1);
+                App.tabs.splice(toIdx, 0, moved);
+                startTop = overEl.offsetTop; // 入れ替え後の位置を基準に更新
+                startY = ev.clientY;
+                dragEl.style.transform = 'translateY(0px)';
+                renderTabManagerLists(); // 再描画（内部でドラッグハンドラも再セットされる）
+              }
+            }
+          }
+          function onUp() {
+            if (dragEl) dragEl.classList.remove('dragging');
+            dragEl = null; dragId = null;
+            persistTabs();
+            renderTabBar();
+          }
+        };
+      });
+    }
+
+    /* ── 汎用テキスト入力ダイアログ（タブ名編集で使用） ──
+       await showTextPrompt(title, defaultValue) の形で使う。OKなら入力文字列、キャンセルならnullを返す。 */
+    function showTextPrompt(title, defaultValue) {
+      return new Promise(resolve => {
+        const overlay   = document.getElementById('textPromptOverlay');
+        const titleEl   = document.getElementById('textPromptTitle');
+        const input     = document.getElementById('textPromptInput');
+        const okBtn     = document.getElementById('textPromptOkBtn');
+        const cancelBtn = document.getElementById('textPromptCancelBtn');
+        titleEl.textContent = title;
+        input.value = defaultValue || '';
+        overlay.classList.add('show');
+        setTimeout(() => { input.focus(); input.select(); }, 50);
+
+        function cleanup(result) {
+          overlay.classList.remove('show');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          input.removeEventListener('keydown', onKeydown);
+          resolve(result);
+        }
+        function onOk()       { cleanup(input.value); }
+        function onCancel()   { cleanup(null); }
+        function onKeydown(e) { if (e.key === 'Enter') onOk(); }
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        input.addEventListener('keydown', onKeydown);
+      });
     }
 
     /* ── 汎用確認ダイアログ（ブラウザ標準のconfirm()は使わず、アプリ内デザインのポップアップで確認を取る） ──
@@ -3008,15 +3617,25 @@ self.addEventListener('fetch', function(e) {
       App.projectNum1 = parseInt(localStorage.getItem('jtable_project_num1'), 10) || 1;
       App.projectNum2 = parseInt(localStorage.getItem('jtable_project_num2'), 10) || 1;
       updateProjectNameDisplay();
-      Object.keys(TAB_DEFS).forEach(loadTabData);
-      notifyStartupRecoveryStatus();
-      updateAllTabBadges();
-      buildLayoutForActiveTab();
-      calculateDimensions();
-      updateColumnWidths(); // buildLayoutForActiveTab時点ではDrum.rowHeightが未確定のため、ここで正しい値で再計算する
-      renderAllRows();
-      Drum.targetRow = Drum.currentRow;
-      updateRowInfo(); updateUndoRedoBtns();
+
+      loadTabsState(); // タブ一覧・アーカイブの読み込み（旧バージョンからの移行もここで行われる）
+      App.activeTabId = App.tabs.length > 0 ? App.tabs[0].id : null;
+      renderTabBar();
+      updateEmptyStateVisibility();
+
+      if (App.tabs.length > 0) {
+        App.tabs.forEach(t => loadTabData(t.id));
+        notifyStartupRecoveryStatus();
+        updateAllTabBadges();
+        buildLayoutForActiveTab();
+        calculateDimensions();
+        updateColumnWidths(); // buildLayoutForActiveTab時点ではDrum.rowHeightが未確定のため、ここで正しい値で再計算する
+        renderAllRows();
+        Drum.targetRow = Drum.currentRow;
+        updateRowInfo();
+        lastRenderedTabId = App.activeTabId;
+      }
+      updateUndoRedoBtns();
       setupEvents();
       updateTabTapZones(); // タブの初期位置・幅に合わせて当たり判定レイヤーを生成する
       window.addEventListener('resize', handleResize);
