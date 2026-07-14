@@ -236,7 +236,9 @@
       display: flex; align-items: center; gap: 8px;
       background: var(--inactive-val-bg); border: 1px solid var(--inactive-val-border);
       border-radius: 10px; padding: 8px 10px;
-      touch-action: none; /* ドラッグハンドルの縦移動をJSで完全制御するため */
+      /* touch-action:noneは項目全体ではなくハンドル（.tabmgr-drag-handle）側だけに絞っている。
+         項目全体に指定すると、ハンドル以外（名前部分など）を触った時も.tabmgr-bodyの縦スクロールが
+         効かなくなってしまうため。 */
     }
     .tabmgr-item.dragging { background: var(--row-active-bg); z-index: 5; position: relative; }
     .tabmgr-drag-handle {
@@ -797,7 +799,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.11</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.16</div>
           <!-- タブボタンはApp.tabsの内容からrenderTabBar()がJSで動的に生成する（固定タブは廃止） -->
           <div class="tab-bar" id="tabBar"></div>
           <!-- 「タブ管理」ボタン：追加・削除・並び替え・改名を行う専用モーダルを開く。
@@ -1008,7 +1010,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v1.11";
+      const CACHE_NAME = "jtable-v1.16";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1164,6 +1166,15 @@ self.addEventListener('fetch', function(e) {
            target: セット先の列キー、value: セットする値
     */
     const TAB_COLUMN_OVERRIDES = {
+      naibusonsho1: {
+        // 外部タブと同じ仕組み: 損傷種類（sonsho）が「破損」に選択された瞬間だけ、
+        // 損傷の状況（jokyo）へ既定値「現況」をセットする。autoFillと違い継続監視ではないため、
+        // セット後にjokyoを自由に書き換えても再度上書きされることはない。
+        oneShotFill: { watchField: 'sonsho', watchValue: '破損', target: 'jokyo', value: '現況' },
+      },
+      naibusonsho2: {
+        oneShotFill: { watchField: 'sonsho', watchValue: '破損', target: 'jokyo', value: '現況' },
+      },
       gaibusonsho: {
         // 損傷種類（sonsho）が「破損」に選択された瞬間だけ、損傷の状況（jokyo）へ
         // 既定値「現況」をセットする。autoFillと違い継続監視ではないため、
@@ -1381,6 +1392,13 @@ self.addEventListener('fetch', function(e) {
       // 各要素: tabsの各要素 + { deletedAt }
       deletedTabs: [],
       tabDataCache: {},
+      // タブごとの最終表示位置（{ row, scrollLeft }）。タブを離れる時に記録し、そのタブへ
+      // 戻ってきた時に復元する。アプリ起動中のみメモリ上で保持し、localStorageには保存しない
+      // （リロードでリセットされる。tempOptionsと同じ一時的な扱い）。
+      // アーカイブから復元したタブは同じインスタンスIDを再利用するため、削除時にこのエントリも
+      // 消しておかないと、復元時に削除前の位置を誤って引き継いでしまう点に注意
+      // （新規タブ・復元したタブはいずれも初期位置から始まる仕様のため）。
+      tabPositions: {},
       freqData: {},
       // 自由入力で確定した値を一時的に選択肢として保持する（タブID → 列キー → 値の配列）。
       // ページのリロードでは保持しない（一時的なメモ的扱い）。Excel出力が成功した時点で全クリアされる。
@@ -1559,6 +1577,13 @@ self.addEventListener('fetch', function(e) {
     // 重複していたため、getMaxScrollLeft()と同じ方針で1つの関数に切り出した。
     const clampRow = v => Math.max(0, Math.min(CONST.TOTAL_ROWS - 1, v));
 
+    // 指定タブの最終表示位置（App.tabPositions）を取得する。記録が無い場合（新規タブ・
+    // アーカイブから復元したタブ等）は初期位置（1行目・横スクロール左端）を返す。
+    const getSavedTabPosition = tabId => {
+      const pos = App.tabPositions[tabId];
+      return pos ? { row: clampRow(pos.row), scrollLeft: pos.scrollLeft || 0 } : { row: 0, scrollLeft: 0 };
+    };
+
     /* ── テンキーの状態 ── */
     const Numpad = {
       targetRow: null,
@@ -1585,6 +1610,25 @@ self.addEventListener('fetch', function(e) {
     // tabDataCacheの有無だけでは「画面構築済みか」を正しく判定できなかった
     // （v1.10までタブ追加直後にヘッダー・行が空白になる不具合の原因。詳細はHANDOVER_NOTES参照）。
     let lastRenderedTabId = null;
+
+    // Drum（縦のドラム送り）の行位置をrowにセットする共通ヘルパー。
+    // switchTab()・finishTabListChange()・afterTabsReplaced()の3箇所で
+    // 「Drum.currentRow = X; Drum.targetRow = X; Drum.dragOffset = 0;」という同じ3行が
+    // 重複していたため統一した（いずれも「タブの表示を切り替えて、指定行から描画し直す」場面で使う）。
+    // settleAtRow()内の同種の代入は、ドラム送りアニメーション完了時の内部状態確定という
+    // 別の文脈のため、意図的に統合せず残している。
+    function setDrumRow(row) {
+      Drum.currentRow = row; Drum.targetRow = row; Drum.dragOffset = 0;
+    }
+
+    // テーブル本体・ヘッダーの横スクロール位置を揃えてセットする共通ヘルパー。
+    // 通常はscrollWrapperのscrollイベントでヘッダーが追従するが（setupEvents参照）、
+    // タブ切り替え等でscrollLeftをJSから直接ワープさせる場面ではscrollイベントに頼らず、
+    // 両方を明示的に同じ値へセットする必要があり、この処理が3箇所で重複していたため統一した。
+    function setHorizontalScroll(x) {
+      scrollWrapper.scrollLeft = x;
+      document.getElementById('tableHeaderWrapper').scrollLeft = x;
+    }
 
     // 自動横スクロール（scrollToNextColumn・settleAtRowの左端リセット）のアニメーションID。
     // 手動ドラッグ・ホイール操作など、ユーザー自身が横スクロールを始めた場合は
@@ -1725,10 +1769,19 @@ self.addEventListener('fetch', function(e) {
     function switchTab(tabId) {
       if (tabId === App.activeTabId) return;
       closeAllPanels(); closeNumpad();
+      // 今離れるタブの表示位置（行・横スクロール）を記憶しておく
+      if (App.activeTabId) {
+        App.tabPositions[App.activeTabId] = { row: Drum.currentRow, scrollLeft: scrollWrapper.scrollLeft };
+      }
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
       App.activeTabId = tabId;
+      // 切り替え先タブの最終表示位置を復元する（記録が無ければ初期位置）
+      const pos = getSavedTabPosition(tabId);
+      setDrumRow(pos.row);
       buildLayoutForActiveTab();
-      renderAllRows(); updateRowInfo(); updateUndoRedoBtns();
+      renderAllRows();
+      setHorizontalScroll(pos.scrollLeft);
+      updateRowInfo(); updateUndoRedoBtns();
       lastRenderedTabId = tabId;
     }
 
@@ -2797,14 +2850,21 @@ self.addEventListener('fetch', function(e) {
     function buildExportSpec(columns) {
       const headers = ['No.'];
       const widths  = [5];
-      // [{ field, isNum, hasNumSuffix }] … 各出力列がどのデータキーを参照するか
+      // [{ field, isNum, hasNumSuffix, asText }] … 各出力列がどのデータキーを参照するか
       const fieldPlan = [];
 
-      // 1つの出力列をheaders/widths/fieldPlanにまとめて追加する
-      const addExportColumn = (header, width, field, isNum, hasNumSuffix = false) => {
+      // 1つの出力列をheaders/widths/fieldPlanにまとめて追加する。
+      // asText: 数値項目（isNum:true）を、実際の数値型セルではなく文字列として書き出すかどうか。
+      // 「損傷の状況」のL/W・mm（jokyoNum1/2）は小数を扱うため、数値セルとして出力すると
+      // Excel側のセル書式（列幅・表示形式）によっては小数部分が表示されないことがあった。
+      // 文字列として書き出せば、入力した通りの見た目でそのまま表示される。
+      // なお、SheetJSは既定（ignoreEC未指定＝true相当）で「数値に見える文字列」セルに対する
+      // Excelの警告（左上の緑三角・「数値が文字列として保存されています」等）を自動的に抑止する
+      // マークを付けてくれるため、asTextにしたセルでも警告は表示されない。
+      const addExportColumn = (header, width, field, isNum, hasNumSuffix = false, asText = false) => {
         headers.push(header);
         widths.push(width);
-        fieldPlan.push({ field, isNum, hasNumSuffix });
+        fieldPlan.push({ field, isNum, hasNumSuffix, asText });
       };
 
       // データを持たない、見た目だけの区切り用の空白列を追加する（field: nullなのでtabRows側では常に空文字になる）。
@@ -2819,7 +2879,7 @@ self.addEventListener('fetch', function(e) {
       columns.forEach(col => {
         if (col.type === 'select_with_nums') {
           addExportColumn(col.key, 12, col.key, false);
-          col.nums.forEach(n => addExportColumn(n.exportLabel || n.key, 6, n.key, true));
+          col.nums.forEach(n => addExportColumn(n.exportLabel || n.key, 6, n.key, true, false, true));
           // 標準（内部①②・外部タブ）はnumsが2件（length/width）。それに満たない分（建具・傾斜タブの
           // mm1件のみ）は、widthに相当する位置に空白列を補って列数を揃える。
           for (let i = col.nums.length; i < 2; i++) addBlankColumn();
@@ -2907,8 +2967,13 @@ self.addEventListener('fetch', function(e) {
 
         return rows.slice(0, lastIdx + 1).map((d, i) => [
           i + 1,
-          ...fieldPlan.map(({ field, isNum, hasNumSuffix }) => {
-            if (isNum) return isZeroNum(d[field]) ? '' : Number(d[field]);
+          ...fieldPlan.map(({ field, isNum, hasNumSuffix, asText }) => {
+            if (isNum) {
+              if (isZeroNum(d[field])) return '';
+              // asText: L/W・mm等、小数を扱いうる数値項目は文字列として書き出す（入力した通りの
+              // 見た目でそのまま表示させるため）。箇所（カウンター）は引き続き数値のまま出力する。
+              return asText ? String(d[field]) : Number(d[field]);
+            }
             const raw = d[field] || '';
             if (hasNumSuffix) return formatNumSuffixForExport(raw);
             return toExportHalfWidth(raw);
@@ -2982,19 +3047,19 @@ self.addEventListener('fetch', function(e) {
     // インポート完了後に共通で行う再描画処理（v2形式・旧v1形式どちらの復元でも使う）
     function afterTabsReplaced() {
       App.tabDataCache = {};
+      App.tabPositions = {}; // 復元によりタブ構成自体が変わるため、記憶していた表示位置もクリアする
       App.activeTabId = App.tabs.length > 0 ? App.tabs[0].id : null;
       renderTabBar();
       updateEmptyStateVisibility();
       if (App.activeTabId) {
         App.tabs.forEach(t => loadTabData(t.id));
         updateAllTabBadges();
+        setDrumRow(0); // renderAllRows()より前にセットする
         buildLayoutForActiveTab();
         calculateDimensions();
         updateColumnWidths();
         renderAllRows();
-        Drum.currentRow = 0; Drum.targetRow = 0; Drum.dragOffset = 0;
-        scrollWrapper.scrollLeft = 0;
-        document.getElementById('tableHeaderWrapper').scrollLeft = 0;
+        setHorizontalScroll(0);
         updateRowInfo();
         updateTabTapZones();
         lastRenderedTabId = App.activeTabId;
@@ -3363,6 +3428,10 @@ self.addEventListener('fetch', function(e) {
       delete App.tabDataCache[id];
       delete App.undoStack[id];
       delete App.redoStack[id];
+      // 記憶していた表示位置も消す。アーカイブから復元した時に同じインスタンスIDを再利用するため、
+      // ここで消しておかないと「復元＝新規扱いで初期位置から」という仕様に反して
+      // 削除前の位置を引き継いでしまう。
+      delete App.tabPositions[id];
       persistTabs(); persistDeletedTabs();
       if (App.activeTabId === id) App.activeTabId = App.tabs.length > 0 ? App.tabs[0].id : null;
       finishTabListChange(`「${inst.label}」を削除しました`);
@@ -3387,6 +3456,7 @@ self.addEventListener('fetch', function(e) {
       localStorage.removeItem(inst.storageKey);
       localStorage.removeItem(inst.storageKey + '_bak');
       App.deletedTabs = App.deletedTabs.filter(t => t.id !== id);
+      delete App.tabPositions[id]; // 念のため（通常はdeleteActiveTabInstance側で既に消えている）
       persistDeletedTabs();
       renderTabManagerLists();
       showToast(`「${inst.label}」を完全に削除しました`);
@@ -3421,13 +3491,17 @@ self.addEventListener('fetch', function(e) {
       // （v1.10まで、タブ追加直後にヘッダー・行が空白のままになる不具合の原因だった）。
       if (App.activeTabId && App.activeTabId !== lastRenderedTabId) {
         loadTabData(App.activeTabId);
+        // 保存されている最終表示位置を復元する（新規タブ・アーカイブから復元したタブは
+        // getSavedTabPosition()が初期位置を返すので、自然に「新規は初期位置から」になる）。
+        // Drum.currentRowはrenderAllRows()がどの行を「アクティブ行」として描画するかを
+        // 左右するため、renderAllRows()より前に必ずセットしておく。
+        const pos = getSavedTabPosition(App.activeTabId);
+        setDrumRow(pos.row);
         buildLayoutForActiveTab();
         calculateDimensions();
         updateColumnWidths();
         renderAllRows();
-        Drum.currentRow = 0; Drum.targetRow = 0; Drum.dragOffset = 0;
-        scrollWrapper.scrollLeft = 0;
-        document.getElementById('tableHeaderWrapper').scrollLeft = 0;
+        setHorizontalScroll(pos.scrollLeft);
         updateRowInfo();
         updateUndoRedoBtns();
         updateTabTapZones();
@@ -3439,57 +3513,77 @@ self.addEventListener('fetch', function(e) {
     }
 
     /* ── タブ管理一覧のドラッグ並び替え（Pointer Events） ──
-       行の「☰」ハンドルを掴んで上下にドラッグすると、指の位置に応じて配列（App.tabs）の
-       並び順をその場で入れ替える。指を離した時点でlocalStorageに保存し、メインのタブバーにも反映する。
+       行の「☰」ハンドルを掴んで上下にドラッグすると、指の位置に応じてDOM要素そのものを
+       直接並び替える（insertBefore/appendChildで移動するだけで、リストのinnerHTMLは
+       ドラッグ中は一切作り直さない）。指を離した時点でDOM上の最終的な並び順から
+       App.tabsを再構築し、localStorageへ保存・メインのタブバーにも反映する。
        この並び替えはタブ管理モーダル内だけで完結しており、メインテーブルの縦ドラッグ（Drum）とは
-       別のシンプルな実装（順序の入れ替えのみ、慣性やスナップアニメーションは持たない）。 */
+       別のシンプルな実装（順序の入れ替えのみ、慣性やスナップアニメーションは持たない）。
+       ハンドルを掴んだ瞬間にsetPointerCaptureを呼ぶ対象は、move/upのイベントリスナーを
+       登録している要素（handle自身）と必ず一致させること。キャプチャした要素と異なる要素に
+       リスナーを付けると、キャプチャ後はその子孫要素にイベントが届かなくなり、
+       ドラッグが一切反応しなくなる（実際にこの不一致が原因で発生していた不具合）。 */
     function setupTabMgrDragReorder() {
       const list = document.getElementById('tabMgrActiveList');
-      let dragEl = null, dragId = null, startY = 0, startTop = 0;
 
-      list.querySelectorAll('.tabmgr-drag-handle').forEach(handle => {
+      list.querySelectorAll('.tabmgr-item').forEach(item => {
+        const handle = item.querySelector('.tabmgr-drag-handle');
+        if (!handle) return;
+
         handle.onpointerdown = e => {
           e.preventDefault();
-          dragEl = handle.closest('.tabmgr-item');
-          dragId = dragEl.dataset.id;
-          startY = e.clientY;
-          startTop = dragEl.offsetTop;
+          const dragEl = item;
+          let startY = e.clientY;
+          let startTop = dragEl.offsetTop;
           dragEl.classList.add('dragging');
-          dragEl.setPointerCapture(e.pointerId);
-          handle.onpointermove = onMove;
-          handle.onpointerup = handle.onpointercancel = onUp;
+          // move/upのリスナーと同じ要素(handle)でキャプチャする。万一この呼び出し自体が
+          // 例外を投げる環境があっても、後続のmove/upリスナー登録まで止まってしまわないようtry/catchする
+          // （キャプチャが効かないだけなら、指がハンドルの上にある間はイベントは通常通り届く）。
+          try { handle.setPointerCapture(e.pointerId); } catch (err) { /* 対応していない環境向けの保険 */ }
 
-          function onMove(ev) {
-            if (!dragEl) return;
+          const onMove = ev => {
             const dy = ev.clientY - startY;
             dragEl.style.transform = `translateY(${dy}px)`;
-            // ドラッグ中の要素の中心位置から、現在どの項目の上に重なっているかを判定して入れ替える
-            const items = [...list.querySelectorAll('.tabmgr-item')];
-            const dragCenter = startTop + dy + dragEl.offsetHeight / 2;
-            const overEl = items.find(it => {
-              if (it === dragEl) return false;
-              const top = it.offsetTop;
-              return dragCenter > top && dragCenter < top + it.offsetHeight;
-            });
-            if (overEl) {
-              const fromIdx = App.tabs.findIndex(t => t.id === dragId);
-              const toIdx   = App.tabs.findIndex(t => t.id === overEl.dataset.id);
-              if (fromIdx !== -1 && toIdx !== -1) {
-                const [moved] = App.tabs.splice(fromIdx, 1);
-                App.tabs.splice(toIdx, 0, moved);
-                startTop = overEl.offsetTop; // 入れ替え後の位置を基準に更新
-                startY = ev.clientY;
-                dragEl.style.transform = 'translateY(0px)';
-                renderTabManagerLists(); // 再描画（内部でドラッグハンドラも再セットされる）
-              }
+            // ドラッグ中の要素の中心位置と、他の項目の中心位置を比較して、
+            // 追い越した項目の前後どちらに入れるべきかを判定する（中間点比較方式）。
+            // 「箱の中に入っているか」判定より、指を素早く動かして複数項目を飛び越えた場合にも
+            // 確実に順序を判定できる。
+            const dragMid = startTop + dy + dragEl.offsetHeight / 2;
+            const siblings = [...list.children].filter(el => el !== dragEl);
+            let target = null;
+            for (const sib of siblings) {
+              const sibMid = sib.offsetTop + sib.offsetHeight / 2;
+              if (dragMid < sibMid) { target = sib; break; }
             }
-          }
-          function onUp() {
-            if (dragEl) dragEl.classList.remove('dragging');
-            dragEl = null; dragId = null;
+            const currentNext = dragEl.nextElementSibling;
+            const needsMove = target ? (target !== currentNext) : (currentNext !== null);
+            if (needsMove) {
+              // innerHTMLの作り直しではなく、既存のDOMノードをそのまま移動するだけなので、
+              // ドラッグ中のdragEl/handle自体は最後まで同じ要素のまま（イベント・キャプチャが途切れない）
+              if (target) list.insertBefore(dragEl, target);
+              else list.appendChild(dragEl);
+              // 移動によってdragElのレイアウト上の位置(offsetTop)が変わるため、
+              // その時点を新しい基準（dy=0）としてリセットし、指の位置に違和感なく追従させる
+              startTop = dragEl.offsetTop;
+              startY = ev.clientY;
+              dragEl.style.transform = 'translateY(0px)';
+            }
+          };
+          const onUp = () => {
+            dragEl.classList.remove('dragging');
+            dragEl.style.transform = '';
+            handle.onpointermove = null;
+            handle.onpointerup = null;
+            handle.onpointercancel = null;
+            // DOM上の最終的な並び順（＝ユーザーが実際に見ている順番）からApp.tabsを組み直す
+            const orderedIds = [...list.children].map(el => el.dataset.id);
+            App.tabs = orderedIds.map(id => App.tabs.find(t => t.id === id)).filter(Boolean);
             persistTabs();
             renderTabBar();
-          }
+          };
+          handle.onpointermove = onMove;
+          handle.onpointerup = onUp;
+          handle.onpointercancel = onUp;
         };
       });
     }
