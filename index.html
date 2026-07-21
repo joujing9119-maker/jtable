@@ -180,6 +180,17 @@
     }
     .tab-manage-btn:active { filter: brightness(0.92); }
 
+    /* ── 表示行数切り替えボタン（タブ管理ボタンの隣）──
+       ボタンの見た目はtab-manage-btnと揃え、色だけ変えて見分けやすくしている。
+       表示テキスト（5/7/9）はupdateVisibleRowsButton()がJSで更新する。 */
+    .rows-toggle-btn {
+      flex-shrink: 0; width: 34px; height: 34px; margin-bottom: 1px;
+      border: none; border-radius: 10px; cursor: pointer;
+      background: rgba(46,196,182,0.18); color: #20a39e;
+      font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    }
+    .rows-toggle-btn:active { filter: brightness(0.92); }
+
     /* ── タブが1つも無い時の案内表示（table-area内） ── */
     .table-empty-state {
       display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
@@ -240,7 +251,7 @@
          項目全体に指定すると、ハンドル以外（名前部分など）を触った時も.tabmgr-bodyの縦スクロールが
          効かなくなってしまうため。 */
     }
-    .tabmgr-item.dragging { background: var(--row-active-bg); z-index: 5; position: relative; }
+    .tabmgr-item.dragging { background: var(--row-active-bg); z-index: 5; position: relative; touch-action: none; }
     .tabmgr-drag-handle {
       flex-shrink: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
       color: var(--text-sub); font-size: 16px; cursor: grab; touch-action: none;
@@ -394,8 +405,8 @@
     }
     .table-header-wrapper::-webkit-scrollbar { display: none; }
     .table-header-cell {
-      height: 36px; display: flex; align-items: center; justify-content: center;
-      padding: 0 4px; font-size: 22px; font-weight: 700; line-height: 1;
+      height: var(--header-height, 36px); display: flex; align-items: center; justify-content: center;
+      padding: 0 4px; font-size: var(--header-font-size, 22px); font-weight: 700; line-height: 1;
       color: var(--th-text);
       border-right: 1px solid var(--card-border); white-space: nowrap;
     }
@@ -614,51 +625,34 @@
     /* ── 青帯ハイライト ── */
     .center-highlight { position: absolute; left: 0; right: 0; border-top: 3px solid #0077b6; border-bottom: 3px solid #0077b6; pointer-events: none; z-index: 10; background: var(--highlight-bg); }
 
-    /* 案件名表示（ドラム領域の左上に常時表示。タップして編集できる）。
-       表示・保存（Excel出力）時のファイル名末尾には「案件名様num1-num2」として付加される
-       （例:「山田様5-2」）。数字部分の入力（＋/－ボタン）は「案件名を入力」ダイアログ側に
-       あるため、このバッジ自体はタップして開くだけのシンプルな表示専用要素。 */
-    .project-name-badge {
-      position: absolute; top: 6px; left: 6px; z-index: 20;
-      max-width: 380px; padding: 6px 15px; border-radius: 12px;
-      background: rgba(0,0,0,0.5); color: #fff;
-      font-size: 18px; font-weight: 700; white-space: nowrap;
-      overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+    /* ── 案件名表示（Jstampと統一感を出すため、同じ見た目・仕組みに合わせた） ──
+       ドラム領域の左上に常時表示する、直接入力できるテキスト欄。タップしてダイアログを開く方式は
+       廃止し、Jstampと同じ「常時表示＋その場で入力」の形にした（v1.19）。番号（棟番号・号室番号用の
+       連番、旧「様5-2」機能）もJstampには無いため、統一のため廃止した。
+       見た目はJstampのCSSをそのまま踏襲しており、アプリのライト/ダークテーマには連動しない
+       （テンキー等の他のポップアップ類も同様にテーマ非連動の固定配色のため、その方針を踏襲）。 */
+    #projectNameWrap {
+      position: absolute; top: 10px; left: 10px; z-index: 20;
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(20,20,20,0.72); backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,0.16); border-radius: 10px;
+      padding: 6px 10px; max-width: calc(100% - 20px);
     }
-    .project-name-badge.empty { font-weight: 400; color: rgba(255,255,255,0.75); }
-
-    /* 案件名入力ダイアログ内の数字（棟番号・号室番号などの連番用、例:「5-2」）。
-       数字は任意項目のため、デフォルトでは「＋ 番号を追加」ボタンのみを表示し、
-       押した時点で初めて＋/－ステッパーの行に切り替わる（名前だけの状態が既定値であり、
-       名前を入力しただけで自動的に数字が付いてしまわないようにするため）。
-       ステッパー行の右端の✕ボタンで、再び「番号を追加」ボタンの状態（番号なし）に戻せる。
-       ダイアログの背景（#16213e）に合わせた配色。 */
-    .project-num-section { display: flex; justify-content: center; }
-    .project-num-add-btn {
-      padding: 8px 16px; border: 2px dashed rgba(255,255,255,0.35); border-radius: 10px;
-      background: transparent; color: rgba(255,255,255,0.75);
-      font-size: 13px; font-weight: 600; cursor: pointer;
+    #projectNameLabel {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.45); white-space: nowrap; flex-shrink: 0;
     }
-    .project-num-add-btn:active { background: rgba(255,255,255,0.08); }
-    .project-num-edit-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
-    .project-num-edit-val { min-width: 1.6em; text-align: center; font-size: 19px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
-    .project-num-sep { font-size: 17px; font-weight: 700; color: rgba(255,255,255,0.6); padding: 0 1px; }
-    .project-num-btn {
-      width: 32px; height: 32px; flex-shrink: 0; border: none; border-radius: 50%;
-      font-size: 16px; font-weight: 700; line-height: 1; color: #fff; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
+    #projectNameField {
+      background: transparent; border: none; outline: none; color: #fff;
+      font-size: 13px; font-weight: 600; width: 42vw; max-width: 220px;
+      min-width: 60px; font-family: inherit;
+      /* このフィールドはtouch-action:noneの.drum-viewport内にあるため、.text-input（備考欄）と
+         同様にtouch-actionを明示的に上書きしないと、iPadでカーソル配置・テキスト選択が
+         正しく機能しない。Jstamp側にはこの制約が無いため、この2行はJtable独自の追加。 */
+      touch-action: manipulation; -webkit-user-select: text; user-select: text;
     }
-    .project-num-btn.minus { background: linear-gradient(135deg, #e63946 0%, #c1121f 100%); }
-    .project-num-btn.plus  { background: linear-gradient(135deg, #2ec4b6 0%, #20a39e 100%); }
-    .project-num-btn:active { transform: scale(0.9); }
-    .project-num-remove-btn {
-      width: 26px; height: 26px; flex-shrink: 0; margin-left: 4px;
-      border: 2px solid rgba(230,57,70,0.5); border-radius: 50%;
-      background: rgba(230,57,70,0.12); color: #ff8a93;
-      font-size: 12px; font-weight: 700; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .project-num-remove-btn:active { background: rgba(230,57,70,0.25); }
+    #projectNameField::placeholder { color: rgba(255,255,255,0.35); font-weight: 400; }
 
 
     /* ── 名称パネル：数字サブ選択ゾーン（パネル右側・縦長スライドイン） ── */
@@ -799,12 +793,15 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.16</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.22</div>
           <!-- タブボタンはApp.tabsの内容からrenderTabBar()がJSで動的に生成する（固定タブは廃止） -->
           <div class="tab-bar" id="tabBar"></div>
           <!-- 「タブ管理」ボタン：追加・削除・並び替え・改名を行う専用モーダルを開く。
                タブバーの中身（スクロール領域）とは別のflex-shrink:0要素として、常に右端に表示する。 -->
           <button class="tab-manage-btn" onclick="openTabManager()" title="タブ管理">🗂</button>
+          <!-- 「表示行数切り替え」ボタン：押すたびに5行→7行→9行の3段階で表示行数を切り替える。
+               ボタンの文字自体が現在の表示行数を示す（updateVisibleRowsButtonが更新する）。 -->
+          <button class="rows-toggle-btn" id="rowsToggleBtn" onclick="cycleVisibleRows()" title="表示行数を切り替え">5</button>
         </div>
       </div>
 
@@ -815,7 +812,12 @@
         <div class="table-scroll-wrapper" id="tableScrollWrapper">
           <div class="drum-viewport" id="drumViewport">
             <div class="center-highlight" id="centerHighlight"></div>
-            <div class="project-name-badge empty" id="projectNameBadge" onclick="openProjectNameEditor()">案件名</div>
+            <div id="projectNameWrap">
+              <span id="projectNameLabel">案件名</span>
+              <input type="text" id="projectNameField" placeholder="未設定" autocomplete="off"
+                oninput="onProjectNameInput(this.value)"
+                onkeydown="if(event.key==='Enter') this.blur()">
+            </div>
             <div class="drum-container" id="drumContainer"></div>
           </div>
         </div>
@@ -933,35 +935,6 @@
     </div>
   </div>
 
-  <!-- 案件名入力ダイアログ（ブラウザ標準のprompt()の代わりに使用。showProjectNameDialog()から呼び出す）。
-       名前の入力欄に加えて、任意項目の数字2箇所（棟番号・号室番号などの連番用、＋/－ボタンで増減）も
-       このダイアログ内で編集する。数字は既定では「未使用（番号なし）」で、「＋ 番号を追加」ボタンを
-       押した時だけ＋/－ステッパーの行に切り替わる（名前だけを入力した場合に自動で数字が付いてしまわない
-       ようにするため）。名前・数字ともOK確定時にのみApp/localStorageへ反映され、キャンセル時は
-       変更を破棄する（編集中の一時状態はProjectEditが保持）。 -->
-  <div class="backup-overlay" id="projectNameOverlay">
-    <div class="backup-container">
-      <div class="backup-title">案件名を入力</div>
-      <div class="backup-info-text">保存（Excel出力）時のファイル名末尾に「○○様」として追加されます（番号を追加すると「○○様5-2」のようになります）</div>
-      <input type="text" id="projectNameInput" class="project-name-input" placeholder="例：山田">
-      <div class="project-num-section" id="projectNumSection">
-        <button class="project-num-add-btn" id="projectNumAddBtn" onclick="enableProjectNum()">＋ 番号を追加</button>
-        <div class="project-num-edit-row" id="projectNumEditRow" style="display:none;">
-          <button class="project-num-btn minus" onclick="stepProjectNumEdit(1,-1)">－</button>
-          <span class="project-num-edit-val" id="projectNumEditVal1">1</span>
-          <button class="project-num-btn plus" onclick="stepProjectNumEdit(1,1)">＋</button>
-          <span class="project-num-sep">-</span>
-          <button class="project-num-btn minus" onclick="stepProjectNumEdit(2,-1)">－</button>
-          <span class="project-num-edit-val" id="projectNumEditVal2">1</span>
-          <button class="project-num-btn plus" onclick="stepProjectNumEdit(2,1)">＋</button>
-          <button class="project-num-remove-btn" onclick="disableProjectNum()" title="番号を外す">✕</button>
-        </div>
-      </div>
-      <button class="backup-action-btn restore" id="projectNameOkBtn">OK</button>
-      <button class="backup-action-btn close" id="projectNameCancelBtn">キャンセル</button>
-    </div>
-  </div>
-
   <!-- 汎用テキスト入力ダイアログ（タブ名編集で使用。showTextPrompt()から呼び出す） -->
   <div class="backup-overlay" id="textPromptOverlay">
     <div class="backup-container">
@@ -1010,7 +983,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v1.16";
+      const CACHE_NAME = "jtable-v1.22";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1369,8 +1342,9 @@ self.addEventListener('fetch', function(e) {
       TOTAL_ROWS:    200,
       THEME_KEY:     'chosaAppTheme',
       FREQ_KEY:      'chosaApp_freq',
-      VISIBLE_ROWS:  5,
-      CENTER_OFFSET: 2,
+      // VISIBLE_ROWS/CENTER_OFFSETは固定値ではなくv1.20〜可変になったため、CONSTからは削除し、
+      // App.visibleRows（表示行数）とDrum.centerOffset（中央行オフセット）に移した。
+      // 5/7/9の3段階切り替えボタン（cycleVisibleRows）の選択肢一覧。
       PANEL_WIDTH:   210,   // 選択パネルの幅(px)
       NUM_ZONE_WIDTH: 72,   // 名称パネル数字サブゾーンの幅(px)
       PANEL_ACTIONS_WIDTH: 160, // 自由入力欄・クリアボタンの固定パネルの幅(px)
@@ -1378,7 +1352,11 @@ self.addEventListener('fetch', function(e) {
       DRAG_THRESHOLD: 5,    // ドラッグ方向（縦/横）を確定する移動量しきい値(px)
       EDGE_ZONE:     20,    // 画面端スワイプ判定エリアの幅(px)
       ANIM_DURATION: 220,   // 行送りアニメーションの時間(ms)
+      VISIBLE_ROWS_ANIM_DURATION: 380, // 表示行数(5/7/9)切り替えアニメーションの時間(ms)
     };
+    // 表示行数の3段階（ボタンを押すたびにこの順で巡回する）
+    const VISIBLE_ROWS_OPTIONS = [5, 7, 9];
+    const VISIBLE_ROWS_KEY = 'jtable_visible_rows';
 
     /* ── アプリ全体の状態 ── */
     const App = {
@@ -1409,15 +1387,13 @@ self.addEventListener('fetch', function(e) {
       // 「保存」（Excel出力）成功時にfalseへ戻る。データ変更（saveData）が行われるとtrueになり、
       // 「全削除」実行時、まだ保存していない内容がある場合に追加の確認を出すために使う（アプリ起動中のみ保持）。
       hasUnsavedChanges: false,
-      // 案件名（任意）。入力すると「○○様」の形で画面左上に常時表示し、保存時のファイル名末尾にも付加する。
+      // 案件名（任意）。Jstampと同じ、画面左上に常時表示する入力欄にその場で入力する
+      // （タップしてダイアログを開く方式・棟番号等の連番付加機能はv1.19でJstampとの統一のため廃止）。
+      // 保存（Excel出力・JSONバックアップ）時のファイル名のベースとしてそのまま使われる。
       projectName: '',
-      // 案件名に付加する2つの数字（例:「山田様5-2」の5と2）。棟番号・号室番号のように、同じ案件内で
-      // 連番を素早く切り替えたいケースを想定した任意項目。projectNumEnabledがtrueの時だけ表示・付加される
-      // （名前だけを入力した場合に自動で「1-1」等が付いてしまわないよう、既定はfalse＝番号なし）。
-      // 「案件名を入力」ダイアログ内の「＋ 番号を追加」ボタンで初めてtrueになる。
-      projectNumEnabled: false,
-      projectNum1: 1,
-      projectNum2: 1,
+      // 表示行数（5/7/9の3段階、既定5）。タブバー右端のボタンで切り替える。localStorageに保存し、
+      // 次回起動時も同じ行数から始まる。
+      visibleRows: 5,
       // アンドゥ履歴スタック（タブID → JSON文字列の配列、新しいものが末尾）。
       // saveData のたびに保存前の状態を積む。件数の上限はなし（無制限に遡れる）。
       // ページリロードでリセットされる（localStorageには保存しない）。
@@ -1563,6 +1539,14 @@ self.addEventListener('fetch', function(e) {
       currentRow: 0,
       targetRow:  0,
       rowHeight:  0,
+      // ビューポート（#drumViewport）の実高さ(px)のキャッシュ。applyRowPositions()内で
+      // 表示範囲の判定に使うが、そのたびにclientHeightを読み直すと強制リフローの原因になりうるため、
+      // calculateDimensions()で計算した時にここへキャッシュしておく。
+      viewportHeight: 0,
+      // 現在の「中央行オフセット」（アクティブ行を画面の何行目に置くか）。通常時は
+      // Math.floor(App.visibleRows / 2)の整数値だが、表示行数切り替えアニメーション中だけ
+      // 連続値（非整数）を取る（animateVisibleRowsChange参照）。
+      centerOffset: 2,
       isDragging: false,
       dragOffset: 0,
       startY: 0, lastY: 0, lastScrollX: 0, lastTime: 0, velocity: 0,
@@ -1570,6 +1554,7 @@ self.addEventListener('fetch', function(e) {
       tapMoved: false,
       isEdgeStart: false,
       animationId: null,
+      visibleRowsAnimationId: null, // 表示行数切り替えアニメーションのrequestAnimationFrame ID
     };
 
     // 行番号を有効範囲（0〜CONST.TOTAL_ROWS-1）に収める共通ヘルパー。
@@ -1806,22 +1791,23 @@ self.addEventListener('fetch', function(e) {
         zone.addEventListener('click', () => switchTab(btn.dataset.tab));
         layer.appendChild(zone);
       });
-      // タブ管理ボタン（.tab-manage-btn）も同じ理由（header-topのoverflow:hiddenによる死角）で
+      // タブ管理ボタン・表示行数切り替えボタンも同じ理由（header-topのoverflow:hiddenによる死角）で
       // 上端付近のタップが反応しづらくなりうるため、同じ仕組みで当たり判定を拡張する。
-      const mgrBtn = document.querySelector('.tab-manage-btn');
-      if (mgrBtn) {
-        const rect = mgrBtn.getBoundingClientRect();
-        if (rect.top > 0 && rect.width > 0) {
-          const zone = document.createElement('div');
-          zone.className = 'tab-tap-extend-zone';
-          zone.style.left   = `${rect.left}px`;
-          zone.style.width  = `${rect.width}px`;
-          zone.style.top    = '0px';
-          zone.style.height = `${rect.top}px`;
-          zone.addEventListener('click', openTabManager);
-          layer.appendChild(zone);
-        }
-      }
+      const extendZoneFor = (el, onClick) => {
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= 0 || rect.width <= 0) return;
+        const zone = document.createElement('div');
+        zone.className = 'tab-tap-extend-zone';
+        zone.style.left   = `${rect.left}px`;
+        zone.style.width  = `${rect.width}px`;
+        zone.style.top    = '0px';
+        zone.style.height = `${rect.top}px`;
+        zone.addEventListener('click', onClick);
+        layer.appendChild(zone);
+      };
+      extendZoneFor(document.querySelector('.tab-manage-btn'), openTabManager);
+      extendZoneFor(document.querySelector('.rows-toggle-btn'), cycleVisibleRows);
     }
 
     /* ── レイアウト構築（columns定義から、列幅グリッド・ヘッダー・選択パネルを組み立てる） ──
@@ -1860,6 +1846,11 @@ self.addEventListener('fetch', function(e) {
       document.documentElement.style.setProperty('--grid-cols-header', widths.join(' '));
       document.documentElement.style.setProperty('--grid-cols-row', [...widths.slice(0, -1), '1fr'].join(' '));
       document.documentElement.style.setProperty('--grid-min-width', `${minWidth}px`);
+      // ヘッダー（列名の行）の高さ・文字サイズも、本体セルの列幅と同じタイミング（Drum.rowHeightが
+      // 変わるたび）に連動して更新する。表示行数（5/7/9）切り替えアニメーション中も、このタイミングで
+      // 一緒に滑らかに変化する（calcHeaderH()/calcFontPx()は現在のDrum.rowHeightを毎回参照するため）。
+      document.documentElement.style.setProperty('--header-height', `${calcHeaderH()}px`);
+      document.documentElement.style.setProperty('--header-font-size', calcFontSize());
     }
 
     // 1列分の表示幅(px)を計算する。
@@ -1933,12 +1924,24 @@ self.addEventListener('fetch', function(e) {
     const escJs = s => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
     /* ── 全画面表示ボタン ──
-       iPadのStage Manager等でSafari／このアプリがウィンドウ表示になっている場合に、
-       Fullscreen API（webkitプレフィックス対応）で全画面表示への切り替えを試みる。
-       ただし、Apple公式コミュニティでも案内されている通り、Stage Manager有効時はウィンドウの
-       リサイズハンドル自体をWeb技術から完全に消す手段が無いため、これはあくまで「試す価値のある
-       一手段」であり、必ず解消できるとは限らない（根本的な解消にはiPad本体の設定変更が必要）。 */
+       iPadのStage Manager等でSafari／このアプリがウィンドウ表示になっている場合の対策として
+       v1.03で追加した機能。ただし、ホーム画面に追加したアイコンから起動する「スタンドアロン
+       （PWA）表示」では、Fullscreen API自体がiOS/iPadOSでほぼ機能しないことが分かっている
+       （2026-07-14時点でWeb検索で確認。Apple自身が対応の見込みが薄いとしている既知の制限）。
+       このアプリは「ホーム画面に追加して使う」ことを前提に設計しているため、実際の利用シーンでは
+       ほぼ常にスタンドアロン表示になる。そのままFullscreen APIを試みても失敗するだけなので、
+       スタンドアロン表示を検知した場合はAPIを呼ばずに、実際に効果のある対処法（iPad本体の設定変更）
+       を案内する。スタンドアロンでない場合（Safariの通常タブ等）だけ、従来どおりFullscreen API
+       （webkitプレフィックス対応）を試みる。
+       なお、Stage Manager有効時にウィンドウのリサイズハンドル等をWeb技術から完全に消す手段は
+       無いため（Apple公式コミュニティで確認済み）、根本的な解消にはiPad本体の設定変更が必要。 */
     function requestAppFullscreen() {
+      const isStandalone = window.navigator.standalone === true
+        || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+      if (isStandalone) {
+        showToast('ホーム画面から起動したアプリは全画面表示に切り替えられません。周囲に余白がある場合は、iPadの「設定」→「ホーム画面とマルチタスク」→「Stage Manager」をオフにしてください', 6000);
+        return;
+      }
       const el = document.documentElement;
       const request = el.requestFullscreen || el.webkitRequestFullscreen;
       if (!request) { showToast('お使いの環境では全画面表示に対応していません'); return; }
@@ -1972,14 +1975,26 @@ self.addEventListener('fetch', function(e) {
 
     /* ── 寸法計算 ── */
     function calculateDimensions() {
-      Drum.rowHeight = document.getElementById('drumViewport').clientHeight / CONST.VISIBLE_ROWS;
+      Drum.viewportHeight = document.getElementById('drumViewport').clientHeight;
+      Drum.rowHeight = Drum.viewportHeight / App.visibleRows;
+      Drum.centerOffset = Math.floor(App.visibleRows / 2);
       const hl = document.getElementById('centerHighlight');
-      hl.style.top    = `${CONST.CENTER_OFFSET * Drum.rowHeight}px`;
+      hl.style.top    = `${Drum.centerOffset * Drum.rowHeight}px`;
       hl.style.height = `${Drum.rowHeight}px`;
     }
 
     function handleResize() {
       requestAnimationFrame(() => {
+        // 表示行数（5/7/9）切り替えアニメーション中は、こちらの再計算とアニメーション側の
+        // 再計算が競合し、行の大きさがガクガクと行き来する不具合の原因になっていた。
+        // 原因: アニメーション中は列幅（文字サイズに連動）が毎フレーム縮む/広がることで
+        // #drumViewportの実際の横幅（min-width経由）も変化し、それをResizeObserverが検知して
+        // このhandleResize()を呼んでしまう。ここでcalculateDimensions()を実行すると、
+        // アニメーション側がまだApp.visibleRowsを確定させていない（アニメーション完了時に確定する）
+        // ため、古い行数を基準にDrum.rowHeightを計算し直してしまい、アニメーションの値を
+        // 一瞬引き戻してしまっていた。アニメーション中はこちらの処理をまるごとスキップし、
+        // 再計算はアニメーション側（applyVisibleRowsFrame）に一任する。
+        if (Drum.visibleRowsAnimationId) return;
         calculateDimensions();
         updateColumnWidths();
         document.getElementById('drumContainer').querySelectorAll('.table-row').forEach(r => {
@@ -1990,6 +2005,83 @@ self.addEventListener('fetch', function(e) {
         applyRowPositions(Drum.dragOffset);
         updateTabTapZones(); // 画面回転・リサイズでタブの位置・幅が変わるため、当たり判定も再計算する
       });
+    }
+
+    /* ── 表示行数（5/7/9）切り替え ──
+       タブバー右端の「rowsToggleBtn」を押すたびに、この3段階を巡回で切り替える。
+       単純にDrum.rowHeightを書き換えるだけだと瞬間的に切り替わってしまうため、行の縦間隔
+       （Drum.rowHeight）・中央行オフセット（Drum.centerOffset）をease-out cubicで連続的に補間し、
+       毎フレームapplyVisibleRowsFrame()を呼んで文字サイズ・列幅・ボタンサイズも一緒に
+       再計算することで、間隔だけでなく見た目全体が滑らかに変化するようにしている
+       （animateScrollLeft()と同じイージング・同じ設計方針）。 */
+
+    // 指定した行の高さ・中央行オフセットを実際にDOMへ反映する（アニメーションの1フレーム分の処理）。
+    // アニメーション中は補間された連続値（非整数）を、完了時は確定した最終値を渡して呼ぶ。
+    function applyVisibleRowsFrame(rowHeight, centerOffset) {
+      Drum.rowHeight = rowHeight;
+      Drum.centerOffset = centerOffset;
+      const hl = document.getElementById('centerHighlight');
+      hl.style.top    = `${centerOffset * rowHeight}px`;
+      hl.style.height = `${rowHeight}px`;
+      updateColumnWidths();
+      document.getElementById('drumContainer').querySelectorAll('.table-row').forEach(r => {
+        r.style.height   = `${rowHeight}px`;
+        r.style.fontSize = calcFontSize();
+        applyBtnSize(r);
+      });
+      applyRowPositions(Drum.dragOffset);
+    }
+
+    function animateVisibleRowsChange(targetRows) {
+      if (targetRows === App.visibleRows) return;
+      if (Drum.visibleRowsAnimationId) cancelAnimationFrame(Drum.visibleRowsAnimationId);
+
+      // 表示中のタブが無い（ドラム自体が非表示）場合は、アニメーションさせる対象が無いため
+      // 値の更新だけ行う。次にタブが表示された時点でcalculateDimensions()が新しい行数を反映する。
+      if (!App.activeTabId || !Drum.viewportHeight) {
+        App.visibleRows = targetRows;
+        localStorage.setItem(VISIBLE_ROWS_KEY, String(targetRows));
+        updateVisibleRowsButton();
+        return;
+      }
+
+      const fromRowHeight    = Drum.rowHeight;
+      const fromCenterOffset = Drum.centerOffset;
+      const toRowHeight    = Drum.viewportHeight / targetRows;
+      const toCenterOffset = Math.floor(targetRows / 2);
+      const t0 = performance.now();
+
+      function step(now) {
+        const t = Math.min((now - t0) / CONST.VISIBLE_ROWS_ANIM_DURATION, 1);
+        if (t < 1) {
+          const ease = 1 - Math.pow(1 - t, 3);
+          applyVisibleRowsFrame(
+            fromRowHeight    + (toRowHeight    - fromRowHeight)    * ease,
+            fromCenterOffset + (toCenterOffset - fromCenterOffset) * ease
+          );
+          Drum.visibleRowsAnimationId = requestAnimationFrame(step);
+        } else {
+          applyVisibleRowsFrame(toRowHeight, toCenterOffset); // 最終値を正確な値に確定させる
+          App.visibleRows = targetRows;
+          localStorage.setItem(VISIBLE_ROWS_KEY, String(targetRows));
+          updateVisibleRowsButton();
+          Drum.visibleRowsAnimationId = null;
+        }
+      }
+      Drum.visibleRowsAnimationId = requestAnimationFrame(step);
+    }
+
+    // ボタンを押すたびにVISIBLE_ROWS_OPTIONSを順番に巡回する（5→7→9→5→…）
+    function cycleVisibleRows() {
+      const idx  = VISIBLE_ROWS_OPTIONS.indexOf(App.visibleRows);
+      const next = VISIBLE_ROWS_OPTIONS[(idx + 1) % VISIBLE_ROWS_OPTIONS.length];
+      animateVisibleRowsChange(next);
+    }
+
+    // ボタンの表示文字を現在の表示行数に同期させる
+    function updateVisibleRowsButton() {
+      const btn = document.getElementById('rowsToggleBtn');
+      if (btn) btn.textContent = String(App.visibleRows);
     }
 
     // Drum.rowHeight から選択パネルのトリガー枠の高さ(px, 数値)を計算する。
@@ -2006,6 +2098,15 @@ self.addEventListener('fetch', function(e) {
     // dynamicColumnWidth()内の列幅計算もこの関数を参照しており、値がズレないよう一本化している。
     const calcFontPx = () => Math.max(11, Drum.rowHeight * 0.22);
     const calcFontSize = () => `${calcFontPx()}px`;
+
+    // Drum.rowHeightからヘッダー行（列名の行）の高さ(px, 数値)を計算する。
+    // 以前は36px固定（文字サイズも22px固定）だったため、表示行数（5/7/9）を切り替えても
+    // ヘッダーの見た目だけ変化しなかった。本体セルと同じ「Drum.rowHeightに連動する」設計に揃え、
+    // 表示行数切り替え時にヘッダーの高さ・文字サイズも一緒に滑らかにアニメーションするようにした
+    // （文字サイズ自体はcalcFontPx()を本体セルとそのまま共用し、書式を統一している）。
+    // 比率0.36・下限24pxは、旧固定値（36px高さ・22px文字）が実機でおおよそrowHeight≒100px前後
+    // （5行表示時の一般的なiPadの値）だったことから逆算した目安値。
+    const calcHeaderH = () => Math.max(24, Drum.rowHeight * 0.36);
 
     // ↑同ボタンのサイズをDrum.rowHeight/3の正方形で設定（常にDrum.rowHeightを直参照）
     function applyBtnSize(rowEl) {
@@ -2147,17 +2248,25 @@ self.addEventListener('fetch', function(e) {
 
     /* ── ドラムスクロール ── */
     function applyRowPositions(pixelOffset) {
-      const viewH = Drum.rowHeight * CONST.VISIBLE_ROWS;
+      // viewHはDrum.viewportHeight（calculateDimensions()でキャッシュ済み）を使う。
+      // 表示行数切り替えアニメーション中はDrum.rowHeightが連続的に変化するため、
+      // 「rowHeight×行数」で毎回逆算するとビューポートの実際の高さとズレることがあるため、
+      // 実測したビューポート高さそのものを直接使う。
+      const viewH = Drum.viewportHeight;
+      // ポインター操作を許可する範囲。中央行オフセット（Drum.centerOffset）が大きいほど
+      // （表示行数が多いほど）その分だけ外側の行まで操作可能にする必要があるため、
+      // 固定値ではなくcenterOffsetに応じて計算する（5行表示＝offset2の時は従来通り2.5になる）。
+      const pointerEdgeDist = Drum.centerOffset + 0.5;
       document.getElementById('drumContainer').querySelectorAll('.table-row').forEach(row => {
         const idx  = parseInt(row.dataset.rowIndex);
         const rel  = (idx - Drum.currentRow) - (pixelOffset / Drum.rowHeight);
-        const top  = (rel + CONST.CENTER_OFFSET) * Drum.rowHeight;
+        const top  = (rel + Drum.centerOffset) * Drum.rowHeight;
         const dist = Math.abs(rel);
         row.style.transform = `translateY(${top}px)`;
         row.style.opacity   = Math.max(0.3, 1 - dist * 0.3);
         const hidden = top < -Drum.rowHeight || top > viewH + 10;
         row.style.visibility    = hidden ? 'hidden' : 'visible';
-        row.style.pointerEvents = (hidden || dist >= 2.5) ? 'none' : 'auto';
+        row.style.pointerEvents = (hidden || dist >= pointerEdgeDist) ? 'none' : 'auto';
       });
     }
 
@@ -2941,11 +3050,9 @@ self.addEventListener('fetch', function(e) {
       // 非iOS環境では従来どおり application/json のままダウンロードする。
       const mimeType = IS_IOS_DEVICE ? 'application/octet-stream' : 'application/json';
       const blob = new Blob([json], { type: mimeType });
-      // ファイル名末尾に案件名（入力されていれば）を付加する（Excel出力のファイル名と同じ形式・同じ
-      // formattedProjectName()を使用。例:「山田様」「山田様5-2」）。
-      const projFull = formattedProjectName();
-      const nameSuffix = projFull ? `_${projFull}` : '';
-      downloadBlob(blob, `jtable_backup_${genTimestamp()}${nameSuffix}.json`);
+      // ファイル名のベースは案件名（入力されていればそれをそのまま、未入力なら既定の
+      // 'jtable_backup'）。Excel出力と同じprojectFilenameBase()を使用（Jstampと統一した方式）。
+      downloadBlob(blob, `${projectFilenameBase('jtable_backup')}_${genTimestamp()}.json`);
     }
 
     function exportToExcel() {
@@ -3008,10 +3115,9 @@ self.addEventListener('fetch', function(e) {
       ws['!cols']   = colsSpec.slice(0, colOffset);
       XLSX.utils.book_append_sheet(wb, ws, 'survey');
 
-      // ファイル名末尾に案件名（入力されていれば）+「様」+ 数字1-数字2（例:「山田様5-2」）を付加する。
-      const projFull = formattedProjectName();
-      const nameSuffix = projFull ? `_${projFull}` : '';
-      const fileName = `survey_${genTimestamp()}${nameSuffix}.xlsx`;
+      // ファイル名のベースは案件名（入力されていればそれをそのまま、未入力なら既定の'survey'）。
+      // Jstampと統一した方式（sanitizeForFilename()/projectFilenameBase()参照）。
+      const fileName = `${projectFilenameBase('survey')}_${genTimestamp()}.xlsx`;
 
       try {
         const blob = new Blob(
@@ -3154,74 +3260,30 @@ self.addEventListener('fetch', function(e) {
       showToast('バックアップを保存し、全データを削除しました');
     }
 
-    /* ── 案件名表示（ドラム領域左上のバッジ。タップして「案件名を入力」ダイアログを開く） ──
-       通常は「○○様」の形で表示される（例:「山田様」）。ダイアログ内で「＋ 番号を追加」を押した
-       場合のみ、末尾に「num1-num2」が付いた「○○様num1-num2」の形になる（例:「山田様5-2」）。
-       保存（Excel出力）時のファイル名末尾にも同じ形式で付加される。
-       数字2つ（棟番号・号室番号などの連番用）は、バッジ上ではなく「案件名を入力」ダイアログ内の
-       ＋/－ボタンで編集する（名前と数字・番号の有無をまとめてOKで確定・キャンセルで破棄する設計）。 */
-    // ダイアログを開いている間だけ使う、数字編集の一時状態（OKを押すまではApp/localStorageに反映しない）
-    const ProjectEdit = { enabled: false, num1: 1, num2: 1 };
-
-    async function openProjectNameEditor() {
-      const result = await showProjectNameDialog(App.projectName, App.projectNumEnabled, App.projectNum1, App.projectNum2);
-      if (result === null) return; // キャンセル：名前・数字・番号の有無とも変更を破棄する
-      App.projectName = result.name.trim();
-      App.projectNumEnabled = result.enabled;
-      App.projectNum1 = result.num1;
-      App.projectNum2 = result.num2;
+    /* ── 案件名表示（ドラム領域左上に常時表示するインライン入力欄） ──
+       Jstampと統一感を出すため、同じ仕組み・見た目に合わせた（v1.19）。
+       入力するたびにoninputでそのままlocalStorageへ保存し、タップしてダイアログを開くような
+       仲介は挟まない。旧バージョンにあった「様」の付加・棟番号等の連番機能（Jstampには無い機能）は
+       統一のため廃止した。ファイル名の組み立ては sanitizeForFilename()/projectFilenameBase() が
+       Excel出力・JSONバックアップの両方から共通で呼ばれる（Jstampの sanitizeForFilename()/
+       saveFilenameBase() と同じ役割）。 */
+    function onProjectNameInput(value) {
+      App.projectName = value;
       localStorage.setItem('jtable_project_name', App.projectName);
-      localStorage.setItem('jtable_project_num_enabled', String(App.projectNumEnabled));
-      localStorage.setItem('jtable_project_num1', String(App.projectNum1));
-      localStorage.setItem('jtable_project_num2', String(App.projectNum2));
-      updateProjectNameDisplay();
     }
 
-    // 「＋ 番号を追加」ボタン。番号を1-1から使い始める（既存の数字が残っていればそれを引き継ぐ）。
-    function enableProjectNum() {
-      ProjectEdit.enabled = true;
-      updateProjectNumEditDisplay();
+    // ファイル名に使えない文字（\/:*?"<>|）をアンダースコアに置き換える（Jstampと同じ変換方式。
+      // 旧バージョンはこれらの文字を除去するだけだったが、Jstampに合わせて置換に統一した）。
+    function sanitizeForFilename(s) {
+      return s.replace(/[\\/:*?"<>|]/g, '_');
     }
 
-    // ステッパー行の✕ボタン。番号を再び「未使用」に戻す（数字自体は破棄せず、次に追加した時のために
-    // ProjectEditに残しておく。ただしOKで確定した場合、enabled:falseなので表示・ファイル名には出ない）。
-    function disableProjectNum() {
-      ProjectEdit.enabled = false;
-      updateProjectNumEditDisplay();
-    }
-
-    // ダイアログ内の数字ステッパー（＋/－ボタン）。ProjectEdit（一時状態）のみを更新し、
-    // OKが押されるまでApp.projectNum1/2やlocalStorageには反映しない。下限1・上限999。
-    function stepProjectNumEdit(which, delta) {
-      const key = which === 1 ? 'num1' : 'num2';
-      ProjectEdit[key] = Math.max(1, Math.min(999, ProjectEdit[key] + delta));
-      updateProjectNumEditDisplay();
-    }
-
-    // ProjectEdit.enabledに応じて「＋ 番号を追加」ボタンとステッパー行の表示を切り替え、
-    // ステッパー行が表示されている場合は現在の数字も反映する。
-    function updateProjectNumEditDisplay() {
-      document.getElementById('projectNumAddBtn').style.display  = ProjectEdit.enabled ? 'none' : '';
-      document.getElementById('projectNumEditRow').style.display = ProjectEdit.enabled ? 'flex' : 'none';
-      document.getElementById('projectNumEditVal1').textContent = ProjectEdit.num1;
-      document.getElementById('projectNumEditVal2').textContent = ProjectEdit.num2;
-    }
-
-    // 案件名の完成形文字列を組み立てる（表示・ファイル名の両方で共通利用）。
-    // 名前が未入力の場合は空文字を返す（ファイル名側で「_」を付けないようにするため）。
-    // 番号（projectNumEnabled）がオンの場合のみ「様」の後ろに「num1-num2」を付ける。
-    // ファイル名に使えない文字（\/:*?"<>|）は念のため名前部分から除去する。
-    function formattedProjectName() {
-      const safeName = App.projectName.replace(/[\\/:*?"<>|]/g, '').trim();
-      if (!safeName) return '';
-      return App.projectNumEnabled ? `${safeName}様${App.projectNum1}-${App.projectNum2}` : `${safeName}様`;
-    }
-
-    function updateProjectNameDisplay() {
-      const el = document.getElementById('projectNameBadge');
-      const full = formattedProjectName();
-      el.textContent = full || '案件名';
-      el.classList.toggle('empty', !full);
+    // Excel出力・JSONバックアップのファイル名のベース部分を組み立てる。
+    // 案件名が入力されていればそれをそのままベースにし（Jstampと同じく「survey_」等の接頭辞は付かない）、
+    // 未入力の場合はdefaultBase（呼び出し元ごとの既定のベース名）を使う。
+    function projectFilenameBase(defaultBase) {
+      const trimmed = (App.projectName || '').trim();
+      return trimmed ? sanitizeForFilename(trimmed) : defaultBase;
     }
 
     /* ── 起動時のローリングバックアップ通知・復元確認 ──
@@ -3519,10 +3581,16 @@ self.addEventListener('fetch', function(e) {
        App.tabsを再構築し、localStorageへ保存・メインのタブバーにも反映する。
        この並び替えはタブ管理モーダル内だけで完結しており、メインテーブルの縦ドラッグ（Drum）とは
        別のシンプルな実装（順序の入れ替えのみ、慣性やスナップアニメーションは持たない）。
-       ハンドルを掴んだ瞬間にsetPointerCaptureを呼ぶ対象は、move/upのイベントリスナーを
-       登録している要素（handle自身）と必ず一致させること。キャプチャした要素と異なる要素に
-       リスナーを付けると、キャプチャ後はその子孫要素にイベントが届かなくなり、
-       ドラッグが一切反応しなくなる（実際にこの不一致が原因で発生していた不具合）。 */
+
+       v1.18〜: move/upのリスナーはハンドル自身ではなく document に登録している。
+       ハンドル（☰、28×28px）は指の太さに対してかなり小さく、setPointerCaptureが効いていない
+       環境（一部のWebKitバージョンで実際にありうる）だと、指がハンドルの上から少しでもズレた
+       瞬間にhandle宛のイベントが届かなくなり、「指を動かしても追従してこない」不具合になっていた。
+       documentへ登録すれば、指が画面上のどこにあってもmove/upのイベントを確実に拾えるため、
+       setPointerCaptureの成否に依存しなくなる（setPointerCapture自体は保険として引き続き試みる）。
+       また、並び替え判定（他の項目との位置比較、複数のoffsetTop読み取りを伴う）は指の動きの
+       たびに毎回行うと重くなりうるため、requestAnimationFrameで1フレームに1回まで間引いている
+       （見た目の追従に直結するtransformの更新自体は間引かず、毎回のpointermoveで即座に反映する）。 */
     function setupTabMgrDragReorder() {
       const list = document.getElementById('tabMgrActiveList');
 
@@ -3535,19 +3603,17 @@ self.addEventListener('fetch', function(e) {
           const dragEl = item;
           let startY = e.clientY;
           let startTop = dragEl.offsetTop;
+          let latestDy = 0;
+          let rafId = null;
           dragEl.classList.add('dragging');
-          // move/upのリスナーと同じ要素(handle)でキャプチャする。万一この呼び出し自体が
-          // 例外を投げる環境があっても、後続のmove/upリスナー登録まで止まってしまわないようtry/catchする
-          // （キャプチャが効かないだけなら、指がハンドルの上にある間はイベントは通常通り届く）。
-          try { handle.setPointerCapture(e.pointerId); } catch (err) { /* 対応していない環境向けの保険 */ }
+          // setPointerCaptureも保険として試みる（対応環境では効く）。失敗しても、以下の
+          // document直付けのリスナーにより並び替え自体は問題なく機能する。
+          try { handle.setPointerCapture(e.pointerId); } catch (err) { /* 未対応環境向けの保険 */ }
 
-          const onMove = ev => {
-            const dy = ev.clientY - startY;
-            dragEl.style.transform = `translateY(${dy}px)`;
-            // ドラッグ中の要素の中心位置と、他の項目の中心位置を比較して、
-            // 追い越した項目の前後どちらに入れるべきかを判定する（中間点比較方式）。
-            // 「箱の中に入っているか」判定より、指を素早く動かして複数項目を飛び越えた場合にも
-            // 確実に順序を判定できる。
+          // 並び替え判定（他の項目との位置比較）。rAFで1フレームに1回まで間引いて呼ぶ。
+          const checkSwap = () => {
+            rafId = null;
+            const dy = latestDy;
             const dragMid = startTop + dy + dragEl.offsetHeight / 2;
             const siblings = [...list.children].filter(el => el !== dragEl);
             let target = null;
@@ -3563,27 +3629,37 @@ self.addEventListener('fetch', function(e) {
               if (target) list.insertBefore(dragEl, target);
               else list.appendChild(dragEl);
               // 移動によってdragElのレイアウト上の位置(offsetTop)が変わるため、
-              // その時点を新しい基準（dy=0）としてリセットし、指の位置に違和感なく追従させる
+              // その時点の実際の指位置を新しい基準にリセットし、指の位置に違和感なく追従させる
               startTop = dragEl.offsetTop;
-              startY = ev.clientY;
+              startY += dy;
+              latestDy = 0;
               dragEl.style.transform = 'translateY(0px)';
             }
           };
+
+          const onMove = ev => {
+            ev.preventDefault();
+            latestDy = ev.clientY - startY;
+            // 見た目の追従（transform）は間引かず、pointermoveのたびに毎回即座に反映する
+            dragEl.style.transform = `translateY(${latestDy}px)`;
+            if (rafId === null) rafId = requestAnimationFrame(checkSwap);
+          };
           const onUp = () => {
+            if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            document.removeEventListener('pointercancel', onUp);
             dragEl.classList.remove('dragging');
             dragEl.style.transform = '';
-            handle.onpointermove = null;
-            handle.onpointerup = null;
-            handle.onpointercancel = null;
             // DOM上の最終的な並び順（＝ユーザーが実際に見ている順番）からApp.tabsを組み直す
             const orderedIds = [...list.children].map(el => el.dataset.id);
             App.tabs = orderedIds.map(id => App.tabs.find(t => t.id === id)).filter(Boolean);
             persistTabs();
             renderTabBar();
           };
-          handle.onpointermove = onMove;
-          handle.onpointerup = onUp;
-          handle.onpointercancel = onUp;
+          document.addEventListener('pointermove', onMove, { passive: false });
+          document.addEventListener('pointerup', onUp);
+          document.addEventListener('pointercancel', onUp);
         };
       });
     }
@@ -3643,55 +3719,15 @@ self.addEventListener('fetch', function(e) {
       });
     }
 
-    /* ── 案件名入力ダイアログ（ブラウザ標準のprompt()は使わず、アプリ内デザインのポップアップで入力を取る） ──
-       await showProjectNameDialog(defaultName, defaultEnabled, defaultNum1, defaultNum2) の形で使う。
-       OKなら { name, enabled, num1, num2 } を返し、キャンセルならnullを返す（すべて変更が破棄される）。
-       番号は既定で「未使用」（defaultEnabled=false相当）で開始し、「＋ 番号を追加」ボタン
-       （enableProjectNum）を押した場合のみステッパー行が現れる。数字自体（＋/－ボタン）は
-       stepProjectNumEditでProjectEdit（一時状態）を書き換えるだけで、OKが押された時点で
-       この関数がProjectEditの値を読み取って結果に含める。
-       このダイアログは現状「案件名を入力」専用（呼び出し元は openProjectNameEditor のみ）のため、
-       以前の汎用テキスト入力ダイアログ（showTextInput）から、数字2つ・番号の有無の編集にも
-       対応する形に拡張した。 */
-    function showProjectNameDialog(defaultName, defaultEnabled, defaultNum1, defaultNum2) {
-      return new Promise(resolve => {
-        const overlay   = document.getElementById('projectNameOverlay');
-        const input     = document.getElementById('projectNameInput');
-        const okBtn     = document.getElementById('projectNameOkBtn');
-        const cancelBtn = document.getElementById('projectNameCancelBtn');
-        input.value = defaultName || '';
-        ProjectEdit.enabled = !!defaultEnabled;
-        ProjectEdit.num1 = defaultNum1 || 1;
-        ProjectEdit.num2 = defaultNum2 || 1;
-        updateProjectNumEditDisplay();
-        overlay.classList.add('show');
-        setTimeout(() => input.focus(), 50); // 表示アニメーション後にフォーカスし、確実にキーボードを出す
-
-        function cleanup(result) {
-          overlay.classList.remove('show');
-          okBtn.removeEventListener('click', onOk);
-          cancelBtn.removeEventListener('click', onCancel);
-          input.removeEventListener('keydown', onKeydown);
-          resolve(result);
-        }
-        function onOk()       { cleanup({ name: input.value, enabled: ProjectEdit.enabled, num1: ProjectEdit.num1, num2: ProjectEdit.num2 }); }
-        function onCancel()   { cleanup(null); }
-        function onKeydown(e) { if (e.key === 'Enter') onOk(); }
-        okBtn.addEventListener('click', onOk);
-        cancelBtn.addEventListener('click', onCancel);
-        input.addEventListener('keydown', onKeydown);
-      });
-    }
-
     /* ── Toast ── */
     // タイマーIDを保持し、連続呼び出し時に前のタイマーをクリアしてから新しいタイマーをセットする。
     // これにより、↑同コピーの連打などで複数のタイマーが累積し、表示時間がずれる問題を防ぐ。
     let _toastTimer = null;
-    function showToast(msg) {
+    function showToast(msg, duration = 2500) {
       const t = document.getElementById('toast');
       if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
       t.textContent = msg; t.classList.add('show');
-      _toastTimer = setTimeout(() => { t.classList.remove('show'); _toastTimer = null; }, 2500);
+      _toastTimer = setTimeout(() => { t.classList.remove('show'); _toastTimer = null; }, duration);
     }
 
     /* ── キーボードショートカット ── */
@@ -3707,10 +3743,12 @@ self.addEventListener('fetch', function(e) {
       loadTheme();
       loadFreq();
       App.projectName = localStorage.getItem('jtable_project_name') || '';
-      App.projectNumEnabled = localStorage.getItem('jtable_project_num_enabled') === 'true';
-      App.projectNum1 = parseInt(localStorage.getItem('jtable_project_num1'), 10) || 1;
-      App.projectNum2 = parseInt(localStorage.getItem('jtable_project_num2'), 10) || 1;
-      updateProjectNameDisplay();
+      document.getElementById('projectNameField').value = App.projectName;
+
+      // 表示行数（5/7/9）を読み込む。保存値が選択肢に無い（壊れている等）場合は既定の5にする。
+      const savedRows = parseInt(localStorage.getItem(VISIBLE_ROWS_KEY), 10);
+      App.visibleRows = VISIBLE_ROWS_OPTIONS.includes(savedRows) ? savedRows : 5;
+      updateVisibleRowsButton();
 
       loadTabsState(); // タブ一覧・アーカイブの読み込み（旧バージョンからの移行もここで行われる）
       App.activeTabId = App.tabs.length > 0 ? App.tabs[0].id : null;
