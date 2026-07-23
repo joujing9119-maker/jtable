@@ -793,7 +793,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.23</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.24</div>
           <!-- タブボタンはApp.tabsの内容からrenderTabBar()がJSで動的に生成する（固定タブは廃止） -->
           <div class="tab-bar" id="tabBar"></div>
           <!-- 「タブ管理」ボタン：追加・削除・並び替え・改名を行う専用モーダルを開く。
@@ -983,7 +983,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v1.23";
+      const CACHE_NAME = "jtable-v1.24";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -2051,6 +2051,16 @@ self.addEventListener('fetch', function(e) {
       const toCenterOffset = Math.floor(targetRows / 2);
       const t0 = performance.now();
 
+      // アニメーション中は列幅（文字サイズに連動）が変化し、テーブル全体の横幅
+      // （--grid-min-width）も一緒に変わる。もし横スクロールが右側にずれた状態のまま
+      // アニメーションを始めると、列幅が縮んでスクロール可能範囲が狭くなった瞬間に、
+      // ブラウザ側が横スクロール位置を強制的に補正（クランプ）することがあり、これが
+      // 「アニメーション終了直後にガクッと動く」ように見える原因になりうる。
+      // アニメーション開始時点で横スクロールを左端に戻し、常に有効な範囲内（0は必ず有効）に
+      // 収めておくことで、ブラウザ側の強制補正が起きる余地そのものを無くす。
+      cancelAutoHScroll();
+      setHorizontalScroll(0);
+
       function step(now) {
         const t = Math.min((now - t0) / CONST.VISIBLE_ROWS_ANIM_DURATION, 1);
         if (t < 1) {
@@ -2071,6 +2081,7 @@ self.addEventListener('fetch', function(e) {
           App.visibleRows = targetRows;
           calculateDimensions();
           applyVisibleRowsFrame(Drum.rowHeight, Drum.centerOffset);
+          setHorizontalScroll(0); // 列幅変化に追従して、最終的な左端位置を改めて確定させる
           localStorage.setItem(VISIBLE_ROWS_KEY, String(targetRows));
           updateVisibleRowsButton();
           Drum.visibleRowsAnimationId = null;
