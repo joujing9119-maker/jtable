@@ -191,9 +191,21 @@
     }
     .rows-toggle-btn:active { filter: brightness(0.92); }
 
-    /* ── タブが1つも無い時の案内表示（table-area内） ── */
+    /* ── タブが1つも無い時の案内表示（table-area内） ──
+       v1.31〜: 以前はtable-scroll-wrapperと横並びのflexの兄弟要素で、表示を切り替える際に
+       table-scroll-wrapper自体をdisplay:noneにしていた。しかしv1.30でJスタンプ切り替えボタン
+       （.app-switch-drum-btn）をtable-scroll-wrapperの子として配置したため、その方式だと
+       タブが無い状態でボタンごと非表示になってしまっていた。position:absoluteでtable-area全体を
+       覆うオーバーレイに変更し、table-scroll-wrapper自体は常にレイアウト上に残す（中身は空になる
+       だけ）ようにすることで、案内表示の下に隠れつつもボタンは表示され続けるようにした。
+       z-index:25は、table-scroll-wrapper内の通常のドラム表示要素（.center-highlightと
+       .cell-copy-btnがz-index:10、#projectNameWrapがz-index:20）より上、Jスタンプ切り替え
+       ボタン（z-index:30）より下になるよう設定している（案内表示の下に隠れず、ボタンだけは
+       常に操作できる）。 */
     .table-empty-state {
-      display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      display: none; position: absolute; inset: 0; z-index: 25;
+      flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      background: var(--table-area-bg);
     }
     .empty-state-icon { font-size: 48px; opacity: 0.5; }
     .empty-state-text { font-size: 16px; font-weight: 700; color: var(--text-sub); }
@@ -330,39 +342,33 @@
       background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
-    /* Jスタンプへのワンタップ切り替えボタン（画面左下に固定表示）。Jスタンプ側にも同じ仕組みで
-       Jtableへ戻るボタンを置いている。リンク先URLが変わった場合（リポジトリ名変更など）は、
-       このhrefだけ書き換えればよい。
-       z-indexは選択パネル(500)・パネル背景(499)より低くしてあるので、パネルを開いた時は
-       自然にパネル側が手前に表示され、ボタンが操作の邪魔にならない。 */
-    .app-switch-fab {
-      position: fixed; left: 16px; bottom: 16px; z-index: 50;
+    /* ── Jスタンプへのワンタップ切り替えボタン（v1.30〜: ドラム型スクロールのエリア右上に、元の
+       見た目（52px円・紫グラデーション）のまま重ねて配置し直した。v1.25でヘッダー右端の
+       小さい角丸ボタンに変更していたが、ボタンの大きさ・形は元に戻し、位置だけを「右側ツールバー
+       （.nav-area）の左隣・ヘッダーの下・ドラムエリアの右上に重なる」場所に変更した、という
+       マスターとの質疑応答（2026-08-03）の合意に基づく）。
+       HTML上は`#tableScrollWrapper`（.table-scroll-wrapper、横スクロールする「窓」側の要素）の
+       直接の子として配置している。横スクロールする実際の中身は子の`#drumViewport`（.drum-viewport）
+       の方であり、ボタンをそちらの子にしてしまうと横スクロールと一緒に流れて位置がズレてしまうため、
+       あえて「窓」側に置くことで、横スクロールしても画面上の位置は常にドラムエリアの右上に固定される。
+       z-index:30は、ドラム内部の要素（.table-row内の.cell-copy-btn・.center-highlightがz-index:10、
+       #projectNameWrapがz-index:20）より確実に手前になるよう、それらより大きい値にしてある
+       （選択パネル500・パネル背景499等のモーダル類よりは下のまま、開いている間はそちらが優先される）。 */
+    .app-switch-drum-btn {
+      position: absolute; top: 8px; right: 8px; z-index: 30;
       width: 52px; height: 52px; border-radius: 50%;
       background: linear-gradient(135deg, #8a63f2 0%, #5b3df0 100%);
       color: #fff; display: flex; align-items: center; justify-content: center;
       font-size: 24px; text-decoration: none;
       box-shadow: 0 4px 15px rgba(91,61,240,0.4);
     }
-    .app-switch-fab:active { transform: scale(0.92); }
-
-    /* ── 全画面表示ボタン（画面左下、Jスタンプ切り替えボタンの隣に固定表示） ──
-       iPadのStage Manager（マルチタスク機能）でSafari／このアプリがウィンドウ表示（フローティング
-       ウィンドウ）になっていると、ウィンドウの外側にホーム画面の背景（白い領域）とリサイズ用の
-       半月ハンドルが見えてしまうことがある。これはStage Manager自体の挙動であり、Web技術からは
-       完全に制御できない（Apple公式コミュニティでも「Stage Manager有効時はこのUI要素を隠せない」と
-       案内されている）ため、根本的な解消には「設定」→「ホーム画面とマルチタスク」→「Stage Manager」を
-       オフにするか、毎回ウィンドウを手動で最大化する必要がある。
-       このボタンはFullscreen API（requestFullscreen）で全画面表示への切り替えを試みる補助的な機能で、
-       状況によっては効果がない場合がある点に留意（100%解消を保証するものではない）。 */
-    .fullscreen-fab {
-      position: fixed; left: 78px; bottom: 16px; z-index: 50;
-      width: 52px; height: 52px; border-radius: 50%; border: none;
-      background: linear-gradient(135deg, #4c566a 0%, #2e3648 100%);
-      color: #fff; display: flex; align-items: center; justify-content: center;
-      font-size: 22px; cursor: pointer;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    }
-    .fullscreen-fab:active { transform: scale(0.92); }
+    /* タップ判定を見た目（52pxの円）よりひとまわり広げる。::beforeで生成した透明な矩形は
+       ボタン自身の描画内容の一部として扱われるため、この範囲内のタップは通常どおりボタン自身への
+       タップとして機能する（ドラムの行タップ操作との間で、DOM上の親子関係が別要素であるという
+       意味での「干渉」は発生しない。ただしこの範囲に重なったドラムの行は直接タップできなくなる
+       ことは避けられないため、広げる量は「気持ち程度」の5pxに留めている）。 */
+    .app-switch-drum-btn::before { content: ''; position: absolute; inset: -5px; }
+    .app-switch-drum-btn:active { transform: scale(0.92); }
 
     /* ── バックアップ／復元ダイアログ（numpad-overlayと同じ仕組みの中央モーダル） ── */
     .backup-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1100; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
@@ -387,6 +393,7 @@
 
     /* ── テーブルエリア ── */
     .table-area {
+      position: relative; /* v1.31: タブが無い時の案内表示（.table-empty-state）をオーバーレイ表示するための基準 */
       flex: 1; display: flex; flex-direction: column;
       background: var(--table-area-bg); border-radius: 16px;
       overflow: hidden; border: 2px solid var(--card-border); min-width: 0;
@@ -414,6 +421,7 @@
 
     /* ── 横スクロール（touchはネイティブpan-x・マウスはJS） ── */
     .table-scroll-wrapper {
+      position: relative; /* .app-switch-drum-btn（右上固定）の位置決めの基準にするため */
       flex: 1; overflow-x: auto; overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-x;
@@ -582,9 +590,13 @@
        flexアイテムとして縮まずに画面外へそのままはみ出し、はみ出した分は操作できなかった
        （bodyがoverflow:hiddenのため、スクロールで追いつくこともできなかった）。
        min-height:0でflexアイテムとして縮めるようにした上で、overflow-y:autoで
-       縦スクロールできるようにし、touch-action:pan-yでタッチでの縦スクロールも許可する。 */
+       縦スクロールできるようにし、touch-action:pan-yでタッチでの縦スクロールも許可する。
+       上端のpadding-top（60px＝ボタン1つ分、他のグループ間の間隔と同じ値）は、右ツールバー
+       最上段（昼/夜ボタン）が画面の物理的な上端に近すぎて押しづらいという報告を受けて追加した
+       （v1.28）。ボタン群全体を1つ分下げるだけの単純な対応で、グループ間の間隔（nav-buttons・
+       scroll-right-btnのmargin-top:60px）自体は変更していない。 */
     .nav-area {
-      display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 2px 8px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 60px 2px 8px;
       flex-shrink: 0; min-height: 0; overflow-y: auto; overflow-x: hidden;
       -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain;
       scrollbar-width: none;
@@ -793,7 +805,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.24</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.31</div>
           <!-- タブボタンはApp.tabsの内容からrenderTabBar()がJSで動的に生成する（固定タブは廃止） -->
           <div class="tab-bar" id="tabBar"></div>
           <!-- 「タブ管理」ボタン：追加・削除・並び替え・改名を行う専用モーダルを開く。
@@ -820,6 +832,13 @@
             </div>
             <div class="drum-container" id="drumContainer"></div>
           </div>
+          <!-- 「Jスタンプに切り替え」ボタン（v1.30〜: ドラム型スクロールのエリア右上に重ねて配置。
+               大きさ・形は元の丸ボタンに戻し、位置だけ右側ツールバーの左隣・ヘッダーの下に変更した）。
+               #drumViewportの子ではなく#tableScrollWrapper（横スクロールの「窓」側）の直接の子に
+               しているため、横スクロールしても画面上の位置は動かない。押した瞬間、離れる前のタブ・
+               行・横スクロール位置をlocalStorageへ記憶しておき（saveLastPositionForAppSwitch）、
+               次回Jtableを開いた時に復元できるようにしている（詳細はinit()参照）。 -->
+          <a class="app-switch-drum-btn" href="https://joujing9119-maker.github.io/jstamp/" title="Jスタンプに切り替え" onclick="saveLastPositionForAppSwitch()">🏠</a>
         </div>
         <!-- タブが1つも無い時の案内表示（updateEmptyStateVisibility()がdisplayを切り替える） -->
         <div class="table-empty-state" id="tableEmptyState">
@@ -946,7 +965,7 @@
   </div>
 
   <!-- タブ管理モーダル（タブの追加・削除・並び替え・改名）。openTabManager()/closeTabManager()で開閉。 -->
-  <div class="tabmgr-overlay" id="tabMgrOverlay">
+  <div class="tabmgr-overlay" id="tabMgrOverlay" onclick="if(event.target===this) closeTabManager()">
     <div class="tabmgr-container">
       <div class="tabmgr-header">
         <div class="tabmgr-title">タブ管理</div>
@@ -972,9 +991,6 @@
     </div>
   </div>
 
-  <a class="app-switch-fab" href="https://joujing9119-maker.github.io/jstamp/" title="Jスタンプに切り替え">🏠</a>
-  <button class="fullscreen-fab" onclick="requestAppFullscreen()" title="全画面表示にする">⛶</button>
-
   <script>
     // ── Service Worker (Blob URL方式・Jstampと同じ仕組み) ──────────────────
     // ホーム画面追加時にオフラインでも起動・動作できるようにするためのキャッシュ登録。
@@ -983,7 +999,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v1.24";
+      const CACHE_NAME = "jtable-v1.31";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1074,7 +1090,7 @@ self.addEventListener('fetch', function(e) {
       gaibusonsho: {
         meisho: ['外部','車庫','倉庫','物置','ボイラー室','屋上'],
         kakubu: ['外壁','基礎','土間','犬走','叩き','塀'],
-        shiage: ['リシン','モルタル','ボンタイル','GL','タイル','Co','CB','漆喰','AS','サイディング','木質板','ボード'],
+        shiage: ['リシン','モルタル','ボンタイル','GL','タイル','Co','CB','漆喰','AS','サイディング','木質板','ボード','換気口'],
         sonsho: ['亀裂','網目亀裂','糸亀裂','破損','欠損','隙間','下がり','隆起','ちり切れ','目地切れ','白華'],
       },
       naibusonsho1: {
@@ -1177,7 +1193,9 @@ self.addEventListener('fetch', function(e) {
         labels: { kakubu: '各部仕上げ材' },
         jokyo: {
           options: ['東','西','南','北','東西','南北'],
-          nums: [ { key: 'jokyoNum1', label: '', exportLabel: 'mm', unit: 'mm' } ],
+          // allowZero: true … 傾斜の測定値は「0（傾きなし）」も意味のある実測値のため、他タブの
+          // 数値項目（L/W・mm等、0は未入力扱い）とは異なり、0を有効な入力として扱う（v1.27）。
+          nums: [ { key: 'jokyoNum1', label: '', exportLabel: 'mm', unit: 'mm', allowZero: true } ],
         },
         // 自動入力（autoFill）は傾斜①では不要のため指定しない
       },
@@ -1186,16 +1204,36 @@ self.addEventListener('fetch', function(e) {
         labels: { kakubu: '各部仕上げ材' },
         jokyo: {
           options: ['東','西','南','北','東西','南北'],
-          nums: [ { key: 'jokyoNum1', label: '', exportLabel: 'mm', unit: 'mm' } ],
+          // allowZero: true … 傾斜①と同じ理由（v1.27）
+          nums: [ { key: 'jokyoNum1', label: '', exportLabel: 'mm', unit: 'mm', allowZero: true } ],
         },
         // 自動入力（autoFill）は傾斜②でも不要のため指定しない（傾斜①と同様の扱い）
       },
     };
 
+    // 「0を有効な入力として扱う」数値項目かどうかを判定する（傾斜タブの損傷の状況mm欄のみ該当。v1.27）。
+    // 通常のL/W・mm等の数値項目は0=未入力扱い（isZeroNum参照）だが、傾斜の測定値は「0（傾きなし）」も
+    // 意味のある実測値のため、対象のnums定義に`allowZero:true`が指定されている場合だけ0を「値あり」
+    // として扱う。presetIdを省略した場合は現在アクティブなタブの列定義（getColumns()）を参照する
+    // （テンキー・±ボタン等、常にアクティブタブに対して操作する場面向け）。countFilledRows()のように
+    // アクティブでない他タブの行を評価する場合は、そのタブのpresetIdを明示的に渡すこと。
+    function numFieldAllowsZero(field, presetId) {
+      const columns = presetId ? ((PRESET_DEFS[presetId] || {}).columns || []) : getColumns();
+      for (const col of columns) {
+        if (col.type === 'select_with_nums') {
+          const n = col.nums.find(x => x.key === field);
+          if (n) return !!n.allowZero;
+        }
+      }
+      return false;
+    }
+
     // 行データの指定フィールドに「値がある」と言える状態かどうかを判定する。
     // counter(数値0始まり)は0より大きいかどうか、それ以外（文字列）は空文字でないかどうかで判定する。
-    function hasValueInField(rowData, field) {
+    // allowZero対象フィールド（傾斜タブのjokyoNum1）だけは、0も「値あり」として扱う（v1.27）。
+    function hasValueInField(rowData, field, presetId) {
       const v = rowData[field];
+      if (numFieldAllowsZero(field, presetId)) return v !== '' && v !== undefined;
       return typeof v === 'number' ? v > 0 : !!v;
     }
 
@@ -1357,6 +1395,10 @@ self.addEventListener('fetch', function(e) {
     // 表示行数の3段階（ボタンを押すたびにこの順で巡回する）
     const VISIBLE_ROWS_OPTIONS = [5, 7, 9];
     const VISIBLE_ROWS_KEY = 'jtable_visible_rows';
+    // Jスタンプへの切り替えボタンを押した瞬間の「タブ・行・横スクロール位置」を一時的に記憶しておく
+    // localStorageキー。init()が起動時に一度だけ読み取って消費し、離れる前の表示位置を復元する
+    // （saveLastPositionForAppSwitch()参照）。
+    const APP_SWITCH_POSITION_KEY = 'jtable_app_switch_pos';
 
     /* ── アプリ全体の状態 ── */
     const App = {
@@ -1394,12 +1436,16 @@ self.addEventListener('fetch', function(e) {
       // 表示行数（5/7/9の3段階、既定5）。タブバー右端のボタンで切り替える。localStorageに保存し、
       // 次回起動時も同じ行数から始まる。
       visibleRows: 5,
-      // アンドゥ履歴スタック（タブID → JSON文字列の配列、新しいものが末尾）。
-      // saveData のたびに保存前の状態を積む。件数の上限はなし（無制限に遡れる）。
+      // アンドゥ履歴スタック（タブID → { rowIndex, changes:[{field, prevValue}] } の配列、新しいものが末尾）。
+      // v1.25〜: 以前はタブ全体（200行）のJSON文字列スナップショットを積んでいたため、「1つ戻す」を
+      // 押すとautoFill/oneShotFillによって自動セットされた別セルまで一緒に戻ってしまっていた
+      // （ユーザーが実際に入力したセルではないものまで巻き戻る、という制限違反）。これを避けるため、
+      // saveDataの呼び出し元がユーザーの直接編集分（changes）だけを明示的に渡し、その分だけを
+      // 記録・復元する方式に変更した。件数の上限はなし（無制限に遡れる）。
       // ページリロードでリセットされる（localStorageには保存しない）。
       undoStack: {},
-      // やり直し（redo）履歴スタック（タブID → JSON文字列の配列、新しいものが末尾）。
-      // undoLastSave()で「戻す」たびに、戻す前の状態をここへ積む。redoLastUndo()で
+      // やり直し（redo）履歴スタック（タブID → { rowIndex, changes:[{field, prevValue}] } の配列、新しいものが末尾）。
+      // undoLastSave()で「戻す」たびに、戻す前の値をここへ積む。redoLastUndo()で
       // 末尾から取り出して復元する。saveData()で新しい編集が行われるとクリアされる
       // （一般的なUndo/Redoの挙動と同じく、新しい編集をした時点で「やり直し」は無効になる）。
       // undoStackと同様、ページリロードでリセットされる。
@@ -1407,27 +1453,32 @@ self.addEventListener('fetch', function(e) {
     };
 
     // 現在のタブのデータ配列・保存処理（頻出のため関数化）
-    // rowIndexを渡すと、保存前にその行へタブ別のautoFillルール（連動自動入力）を適用する
+    // rowIndexを渡すと、保存前にその行へタブ別のautoFillルール（連動自動入力）を適用する。
+    // changes（省略可）は「ユーザーが直接編集したセル」の一覧（[{field, prevValue}]、複数可）で、
+    // アンドゥ履歴にはこれだけを記録する。autoFill/oneShotFillによって副次的に変化する別セルは
+    // changesに含めない（呼び出し元が、それらの自動セットより前の値をprevValueとして渡す）ため、
+    // 「1つ戻す」はユーザーが実際に入力したセルにのみ効力を発揮し、自動セットされた別セルまで
+    // 巻き戻すことはない（v1.25、詳細はHANDOVER_NOTES参照）。
     const getData  = () => App.tabDataCache[App.activeTabId];
-    function saveData(rowIndex, autoFillOptions) {
+    function saveData(rowIndex, changes, autoFillOptions) {
       if (rowIndex !== undefined && rowIndex !== null) applyAutoFillRule(getData()[rowIndex], autoFillOptions);
       const tabId = App.activeTabId;
       const key = getTabInstance(tabId).storageKey;
 
-      // アンドゥ用スタックに現在の状態（上書き前）を積む（件数の上限はなし）。
+      // アンドゥ用スタックには、渡されたchanges（ユーザーが直接編集したセルのみ）を積む（件数の上限はなし）。
       // スタックはメモリ上のみ（リロードでリセット）。
-      const prevRaw = localStorage.getItem(key);
-      if (prevRaw) {
+      if (changes && changes.length > 0) {
         if (!App.undoStack[tabId]) App.undoStack[tabId] = [];
-        App.undoStack[tabId].push(prevRaw);
+        App.undoStack[tabId].push({ rowIndex, changes });
       }
       // 新しい編集が行われた時点で「やり直し」履歴は無効になるため、クリアする
-      // （undoLastSave/redoLastUndo自体はsaveData()を経由せず直接localStorageを書き換えるため、
-      // ここでクリアされるのは実際にユーザーが値を編集した場合のみ）。
+      // （undoLastSave/redoLastUndo自体はsaveData()を経由しないため、ここでクリアされるのは
+      // 実際にユーザーが値を編集した場合のみ）。
       App.redoStack[tabId] = [];
 
-      // 破損対策のローリングバックアップ（_bak）：アンドゥとは独立して引き続き維持する。
-      // 退避前の内容が壊れている場合は上書きしない。
+      // 破損対策のローリングバックアップ（_bak）：アンドゥとは独立して引き続き維持する（タブ全体の
+      // スナップショット）。退避前の内容が壊れている場合は上書きしない。
+      const prevRaw = localStorage.getItem(key);
       if (prevRaw) {
         try { JSON.parse(prevRaw); localStorage.setItem(key + '_bak', prevRaw); } catch (e) { /* 壊れていた場合は何もしない */ }
       }
@@ -1458,60 +1509,80 @@ self.addEventListener('fetch', function(e) {
       }
     }
 
-    // アクティブタブをアンドゥスタックの1つ前の状態に戻す。
-    // スタックから末尾（最新）を取り出してlocalStorageに書き戻す。件数の上限はないため、
-    // 「戻す→さらに戻す」を繰り返しても、スタックが空になるまで戻し続けられる。
-    // 戻す前の状態はやり直し（redo）用スタックに積んでおき、redoLastUndo()で復元できるようにする。
-    // ボタン一発で行き来できるよう、確認ダイアログは出さずに即実行する。
+    // 「1つ戻す」「1つ進む」の履歴を全タブ分まとめて破棄する（v1.26）。
+    // アンドゥ履歴はあくまで「セルへの入力」だけを対象にした仕組みであり、タブの追加・削除・
+    // 並び替え・改名などのタブ管理操作や、全削除・バックアップ復元・インポートのようにタブの
+    // データそのものを丸ごと書き換える操作とは切り離す必要がある。これらの操作の前後で古い
+    // アンドゥ履歴が残ったままだと、「1つ戻す」を押した時にその操作より前のセルの値へ巻き戻って
+    // しまい、直後のタブ管理操作やデータの書き換えと矛盾した結果になる（特にバックアップ復元／
+    // インポートでは、既存のApp.undoStack/redoStackがクリアされていなかったため、復元直後に
+    // 「1つ戻す」を押すと復元前の値へ戻ってしまう実際の不具合があった）。
+    // そのため、これらの操作を行う関数（finishTabListChange・タブ管理のドラッグ並び替え完了時・
+    // purgeArchivedTab・afterTabsReplaced・applyRollingRestore・performDeleteAll）は、
+    // 個別のタブのスタックだけを消すのではなく、必ずこの関数でアンドゥ履歴を全タブ分まとめて破棄する。
+    function clearAllUndoHistory() {
+      App.undoStack = {};
+      App.redoStack = {};
+      updateUndoRedoBtns();
+    }
+
+    // 指定した行番号のDOM要素（アクティブ行・非アクティブ行いずれも）が現在描画されていれば、
+    // その行だけをデータの現在値に合わせて再構築する。undoLastSave/redoLastUndoは特定のセルの
+    // 値だけを書き換えるため、以前のようにタブ全体（ヘッダー・全200行）を作り直す必要はなく、
+    // 影響する1行だけを更新すれば十分（軽量化も兼ねる）。
+    function refreshRowDisplay(rowIndex) {
+      const el = document.querySelector(`#drumContainer .table-row[data-row-index="${rowIndex}"]`);
+      if (!el) return;
+      el.innerHTML = rebuildRowHtml(rowIndex);
+      applyBtnSize(el);
+    }
+
+    // アクティブタブのアンドゥスタックから直近の編集を1件取り出し、そのセル（changesに記録された
+    // フィールドのみ）だけを1つ前の値に戻す。v1.25〜: 以前はタブ全体（200行）のスナップショットを
+    // 丸ごと戻していたため、autoFill/oneShotFillで自動セットされた別セルまで一緒に戻ってしまう
+    // 制限違反があった。今はsaveData()側でユーザーが直接編集したセルのみを記録しているため、
+    // 「1つ戻す」は常にそのセルにしか効力を発揮しない。件数の上限はないため、「戻す→さらに戻す」を
+    // 繰り返してもスタックが空になるまで戻し続けられる。戻す前の値はやり直し（redo）用スタックに
+    // 積んでおき、redoLastUndo()で復元できるようにする。ボタン一発で行き来できるよう、確認は出さず即実行する。
     function undoLastSave() {
       const tabId = App.activeTabId;
       const stack = App.undoStack[tabId] || [];
       if (stack.length === 0) return;
       const label = getTabInstance(tabId).label;
-      const key = getTabInstance(tabId).storageKey;
-      // 戻す前の現在の内容を、やり直し（redo）用スタックへ積んでおく
-      const current = localStorage.getItem(key);
-      if (current !== null) {
-        if (!App.redoStack[tabId]) App.redoStack[tabId] = [];
-        App.redoStack[tabId].push(current);
-      }
-      const restored = App.undoStack[tabId].pop();
-      localStorage.setItem(key, restored);
-      delete App.tabDataCache[tabId];
-      loadTabData(tabId);
+      const entry = stack.pop();
+      const row = getData()[entry.rowIndex];
+      // 戻す前の現在値を、やり直し（redo）用スタックへ積んでおく
+      const redoChanges = entry.changes.map(c => ({ field: c.field, prevValue: row[c.field] }));
+      entry.changes.forEach(c => { row[c.field] = c.prevValue; });
+      if (!App.redoStack[tabId]) App.redoStack[tabId] = [];
+      App.redoStack[tabId].push({ rowIndex: entry.rowIndex, changes: redoChanges });
+      localStorage.setItem(getTabInstance(tabId).storageKey, JSON.stringify(getData()));
       updateTabBadge(tabId);
-      buildLayoutForActiveTab();
-      renderAllRows();
+      refreshRowDisplay(entry.rowIndex);
       updateUndoRedoBtns();
-      const remaining = (App.undoStack[tabId] || []).length;
-      showToast(`「${label}」を1つ前の状態に戻しました（残り${remaining}回戻せます）`);
+      showToast(`「${label}」の入力を1つ前の状態に戻しました（残り${stack.length}回戻せます）`);
     }
 
-    // 「戻す」で失った変更を復元する（1つ進む）。redoStackの末尾（直前に戻す前の状態）を取り出して復元する。
-    // 復元前の状態は改めてアンドゥ用スタックへ積むため、「1つ進む→戻す」を繰り返しても行き来できる。
+    // 「戻す」で戻したセルを、もう一度先の値に復元する（1つ進む）。undoLastSaveと対称の実装で、
+    // redoStackの末尾（直前に戻す前の値）を取り出し、そのセルだけを復元する。復元前の値は改めて
+    // アンドゥ用スタックへ積むため、「1つ進む→戻す」を繰り返しても行き来できる。
     // undoLastSaveと同様、確認ダイアログは出さずに即実行する。
     function redoLastUndo() {
       const tabId = App.activeTabId;
       const stack = App.redoStack[tabId] || [];
       if (stack.length === 0) return;
       const label = getTabInstance(tabId).label;
-      const key = getTabInstance(tabId).storageKey;
-      // 進める前の現在の内容を、アンドゥ用スタックへ積んでおく
-      const current = localStorage.getItem(key);
-      if (current !== null) {
-        if (!App.undoStack[tabId]) App.undoStack[tabId] = [];
-        App.undoStack[tabId].push(current);
-      }
-      const restored = App.redoStack[tabId].pop();
-      localStorage.setItem(key, restored);
-      delete App.tabDataCache[tabId];
-      loadTabData(tabId);
+      const entry = stack.pop();
+      const row = getData()[entry.rowIndex];
+      const undoChanges = entry.changes.map(c => ({ field: c.field, prevValue: row[c.field] }));
+      entry.changes.forEach(c => { row[c.field] = c.prevValue; });
+      if (!App.undoStack[tabId]) App.undoStack[tabId] = [];
+      App.undoStack[tabId].push({ rowIndex: entry.rowIndex, changes: undoChanges });
+      localStorage.setItem(getTabInstance(tabId).storageKey, JSON.stringify(getData()));
       updateTabBadge(tabId);
-      buildLayoutForActiveTab();
-      renderAllRows();
+      refreshRowDisplay(entry.rowIndex);
       updateUndoRedoBtns();
-      const remaining = (App.redoStack[tabId] || []).length;
-      showToast(`「${label}」を1つ先の状態に進めました（残り${remaining}回進められます）`);
+      showToast(`「${label}」の入力を1つ先の状態に進めました（残り${stack.length}回進められます）`);
     }
 
     // ── タブの「入力あり」件数バッジ ──────────────────────────
@@ -1519,8 +1590,11 @@ self.addEventListener('fetch', function(e) {
     // 「_」始まりのキー（_autoFillSuppress_* のような内部メタフラグ）はユーザー入力ではないので数えない。
     function countFilledRows(tabId) {
       const rows = loadTabData(tabId);
+      // タブ切り替えバッジの再計算はアクティブタブ以外に対しても行われるため、allowZero判定は
+      // 現在のアクティブタブではなく「このtabId自身のプリセット」を明示的に渡す必要がある（v1.27）。
+      const presetId = (getTabInstance(tabId) || {}).presetId;
       return rows.filter(row =>
-        Object.keys(row).some(k => !k.startsWith('_') && hasValueInField(row, k))
+        Object.keys(row).some(k => !k.startsWith('_') && hasValueInField(row, k, presetId))
       ).length;
     }
     function updateTabBadge(tabId) {
@@ -1750,6 +1824,20 @@ self.addEventListener('fetch', function(e) {
 
 
 
+    // Jスタンプへの切り替えボタン（.app-switch-drum-btn）のonclickから呼ばれる。
+    // 別アプリへページ遷移するとJSの状態は失われるため、遷移する直前に「今見ていたタブ・行・
+    // 横スクロール位置」をlocalStorageへ一時保存しておき、次にJtableをこのボタン経由で開いた時
+    // （init()）に一度だけ読み取って復元する。通常のリンククリックの流れは妨げない
+    // （preventDefaultはしていないため、保存後そのままJスタンプへ遷移する）。
+    function saveLastPositionForAppSwitch() {
+      if (!App.activeTabId) return;
+      try {
+        localStorage.setItem(APP_SWITCH_POSITION_KEY, JSON.stringify({
+          tabId: App.activeTabId, row: Drum.currentRow, scrollLeft: scrollWrapper.scrollLeft,
+        }));
+      } catch (e) { /* 保存に失敗してもページ遷移自体は妨げない */ }
+    }
+
     /* ── タブ切り替え ── */
     function switchTab(tabId) {
       if (tabId === App.activeTabId) return;
@@ -1779,35 +1867,60 @@ self.addEventListener('fetch', function(e) {
     function updateTabTapZones() {
       const layer = document.getElementById('tabTapExtendLayer');
       layer.innerHTML = '';
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        const rect = btn.getBoundingClientRect();
-        if (rect.top <= 0 || rect.width <= 0) return; // 画面外・未描画の場合は対象外
+      // 全タブのrectを先にまとめて読み取っておく（隣接タブとの隙間の中間点を計算するため、
+      // 1つ前・1つ後のタブの位置が必要になる）。
+      const tabBtns = [...document.querySelectorAll('.tab-btn')];
+      const rects = tabBtns.map(btn => btn.getBoundingClientRect());
+
+      tabBtns.forEach((btn, i) => {
+        const rect = rects[i];
+        if (rect.width <= 0) return; // 非表示・未描画の場合のみ対象外（画面外に出ているだけの場合は除外しない）
+
+        // 横方向: タブ本体の見た目の幅そのままだと、タブとタブの隙間（.tab-barのgap:3px分）の
+        // 真上だけがどちらの当たり判定にも含まれない「死角」になっていた。隣接タブとの隙間は
+        // 中間点で分割し、タップ位置に近い方のタブとして反応するようにする（v1.29）。
+        // 両端（最初/最後のタブ）は隣が無いため、タブ本体の実際の左右端をそのまま使う。
+        const prevRect = rects[i - 1];
+        const nextRect = rects[i + 1];
+        const left  = prevRect && prevRect.width > 0 ? (prevRect.right + rect.left) / 2 : rect.left;
+        const right = nextRect && nextRect.width > 0 ? (rect.right + nextRect.left) / 2 : rect.right;
+
+        // 縦方向: 画面の物理的な上端(y=0)からタブ本体の上端までを常にカバーする。以前は
+        // `rect.top <= 0` の場合にゾーンの生成自体を丸ごとスキップしていたが、これだと万一
+        // 何らかのタイミング・環境差でrect.topが0以下になった場合に、その回だけ上方向の判定が
+        // 一切効かなくなるという不安定さがあった。高さをMath.max(0, rect.top)でクランプし、
+        // 0以下でもゾーン自体は必ず作る（高さ0であれば実質何も起きないだけで、他への影響もない）
+        // ようにして、縦方向の判定漏れを防いだ（v1.29）。
         const zone = document.createElement('div');
         zone.className = 'tab-tap-extend-zone';
-        zone.style.left   = `${rect.left}px`;
-        zone.style.width  = `${rect.width}px`;
+        zone.style.left   = `${left}px`;
+        zone.style.width  = `${Math.max(0, right - left)}px`;
         zone.style.top    = '0px';
-        zone.style.height = `${rect.top}px`;
+        zone.style.height = `${Math.max(0, rect.top)}px`;
         zone.addEventListener('click', () => switchTab(btn.dataset.tab));
         layer.appendChild(zone);
       });
-      // タブ管理ボタン・表示行数切り替えボタンも同じ理由（header-topのoverflow:hiddenによる死角）で
-      // 上端付近のタップが反応しづらくなりうるため、同じ仕組みで当たり判定を拡張する。
+      // タブ管理ボタン・表示行数切り替えボタン・Jスタンプ切り替えボタンも同じ理由（header-topの
+      // overflow:hiddenによる死角）で上端付近のタップが反応しづらくなりうるため、同じ仕組みで
+      // 当たり判定を拡張する（こちらは隣接ボタンとの隙間分割は行わず、ボタン本体の幅のまま）。
       const extendZoneFor = (el, onClick) => {
         if (!el) return;
         const rect = el.getBoundingClientRect();
-        if (rect.top <= 0 || rect.width <= 0) return;
+        if (rect.width <= 0) return;
         const zone = document.createElement('div');
         zone.className = 'tab-tap-extend-zone';
         zone.style.left   = `${rect.left}px`;
         zone.style.width  = `${rect.width}px`;
         zone.style.top    = '0px';
-        zone.style.height = `${rect.top}px`;
+        zone.style.height = `${Math.max(0, rect.top)}px`;
         zone.addEventListener('click', onClick);
         layer.appendChild(zone);
       };
       extendZoneFor(document.querySelector('.tab-manage-btn'), openTabManager);
       extendZoneFor(document.querySelector('.rows-toggle-btn'), cycleVisibleRows);
+      // Jスタンプ切り替えボタンはv1.30〜ヘッダーの外（ドラムエリア右上）に移動したため、
+      // header-topのoverflow:hiddenによる死角の対象ではなくなり、この当たり判定拡張は不要になった
+      // （タップ判定自体は.app-switch-drum-btn::beforeで見た目より少し広げている）。
     }
 
     /* ── レイアウト構築（columns定義から、列幅グリッド・ヘッダー・選択パネルを組み立てる） ──
@@ -1922,38 +2035,6 @@ self.addEventListener('fetch', function(e) {
 
     // onclick属性に埋め込む文字列のエスケープ（シングルクォート・バックスラッシュ対策）
     const escJs = s => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-
-    /* ── 全画面表示ボタン ──
-       iPadのStage Manager等でSafari／このアプリがウィンドウ表示になっている場合の対策として
-       v1.03で追加した機能。ただし、ホーム画面に追加したアイコンから起動する「スタンドアロン
-       （PWA）表示」では、Fullscreen API自体がiOS/iPadOSでほぼ機能しないことが分かっている
-       （2026-07-14時点でWeb検索で確認。Apple自身が対応の見込みが薄いとしている既知の制限）。
-       このアプリは「ホーム画面に追加して使う」ことを前提に設計しているため、実際の利用シーンでは
-       ほぼ常にスタンドアロン表示になる。そのままFullscreen APIを試みても失敗するだけなので、
-       スタンドアロン表示を検知した場合はAPIを呼ばずに、実際に効果のある対処法（iPad本体の設定変更）
-       を案内する。スタンドアロンでない場合（Safariの通常タブ等）だけ、従来どおりFullscreen API
-       （webkitプレフィックス対応）を試みる。
-       なお、Stage Manager有効時にウィンドウのリサイズハンドル等をWeb技術から完全に消す手段は
-       無いため（Apple公式コミュニティで確認済み）、根本的な解消にはiPad本体の設定変更が必要。 */
-    function requestAppFullscreen() {
-      const isStandalone = window.navigator.standalone === true
-        || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-      if (isStandalone) {
-        showToast('ホーム画面から起動したアプリは全画面表示に切り替えられません。周囲に余白がある場合は、iPadの「設定」→「ホーム画面とマルチタスク」→「Stage Manager」をオフにしてください', 6000);
-        return;
-      }
-      const el = document.documentElement;
-      const request = el.requestFullscreen || el.webkitRequestFullscreen;
-      if (!request) { showToast('お使いの環境では全画面表示に対応していません'); return; }
-      try {
-        const result = request.call(el);
-        if (result && typeof result.catch === 'function') {
-          result.catch(() => showToast('全画面表示に切り替えられませんでした'));
-        }
-      } catch (e) {
-        showToast('全画面表示に切り替えられませんでした');
-      }
-    }
 
     /* ── テーマ ── */
     function toggleTheme() {
@@ -2149,7 +2230,12 @@ self.addEventListener('fetch', function(e) {
     /* ── レンダリング ── */
     const escHtml   = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const isZeroNum = v => v === '' || v === undefined || v === 0 || v === '0';
-    const numDisp   = v => isZeroNum(v) ? '—' : v;
+    // isEmptyNum(v): 「未入力（空欄）」かどうかだけを判定する（0は含まない）。isZeroNumとの違いに注意。
+    const isEmptyNum = v => v === '' || v === undefined;
+    // numDisp(v, allowZero): 表示用の変換。allowZero:trueの場合は0/'0'も実際の値として表示し、
+    // 未入力（''・undefined）の場合だけ「—」にする（傾斜タブのjokyoNum1のみ該当。v1.27）。
+    // それ以外（allowZero省略・false）は従来通り、0/'0'も未入力扱いで「—」にする。
+    const numDisp = (v, allowZero) => (allowZero ? isEmptyNum(v) : isZeroNum(v)) ? '—' : v;
     const copyBtnHtml = (field, ri) =>
       `<button class="cell-copy-btn" onclick="copyFieldFromAbove(event,${ri},'${field}')">↑同</button>`;
 
@@ -2169,7 +2255,7 @@ self.addEventListener('fetch', function(e) {
                 <div class="num-input-group">
                   ${n.label ? `<span class="num-label">${escHtml(n.label)}</span>` : ''}
                   <button class="num-step-btn minus" onclick="stepNumField(${rowIndex},'${n.key}',-1)">－</button>
-                  <div class="num-display" onclick="openNumpad(${rowIndex},'${n.key}','${escJs(n.label || col.label)}')" id="${numDispId(n.key, rowIndex)}">${numDisp(d[n.key])}</div>
+                  <div class="num-display" onclick="openNumpad(${rowIndex},'${n.key}','${escJs(n.label || col.label)}')" id="${numDispId(n.key, rowIndex)}">${numDisp(d[n.key], n.allowZero)}</div>
                   <button class="num-step-btn plus"  onclick="stepNumField(${rowIndex},'${n.key}',1)">＋</button>
                   ${n.unit ? `<span class="num-unit">${escHtml(n.unit)}</span>` : ''}
                 </div>`).join('');
@@ -2212,7 +2298,7 @@ self.addEventListener('fetch', function(e) {
           return `<span class="inactive-value">${escHtml(d[col.key] || '—')}</span>`;
         case 'select_with_nums': {
           const rowsHtml = col.nums.map(n =>
-            `<div class="jokyo-inactive-row">${n.label ? escHtml(n.label) : ''}<span class="num-val">${numDisp(d[n.key])}${(!isZeroNum(d[n.key]) && n.unit) ? ' ' + escHtml(n.unit) : ''}</span></div>`
+            `<div class="jokyo-inactive-row">${n.label ? escHtml(n.label) : ''}<span class="num-val">${numDisp(d[n.key], n.allowZero)}${(!(n.allowZero ? isEmptyNum(d[n.key]) : isZeroNum(d[n.key])) && n.unit) ? ' ' + escHtml(n.unit) : ''}</span></div>`
           ).join('');
           return `
             <div class="jokyo-inactive">
@@ -2403,7 +2489,13 @@ self.addEventListener('fetch', function(e) {
     });
 
     function handleDragStart(e) {
-      if (e.target.closest('input, button')) return;
+      // v1.30〜: Jスタンプ切り替えボタン（.app-switch-drum-btn、<a>タグ）を#tableScrollWrapperの
+      // 直接の子として重ねて配置したため、そのタッチイベントはscrollWrapperのtouchstartリスナー
+      // （このhandleDragStart）にも伝播するようになった。従来のinput/buttonだけのガードでは
+      // <a>タグが素通りしてしまい、ボタンをタップしたつもりが同時にドラム側のドラッグ開始としても
+      // 処理されてしまう（＝ボタンのタップとドラムのタップ操作が干渉する）ため、'a'もガード対象に
+      // 追加した。
+      if (e.target.closest('input, button, a')) return;
       const c = getCoords(e);
       // 直前の行送りアニメーションがまだ完了していない場合、ここでcancelAnimationFrameするだけでは
       // 表示がアニメーション途中の中途半端な位置のまま固まってしまうことがあった
@@ -2500,7 +2592,12 @@ self.addEventListener('fetch', function(e) {
     // 行に何か入力があるかどうかを判定する（isZeroNumと同じ「空」の基準で全フィールドを見る。
     // _autoFillSuppress_* のような内部メタフラグは対象外）
     function rowHasData(row) {
-      return Object.keys(row).some(k => !k.startsWith('_autoFillSuppress_') && !isZeroNum(row[k]));
+      // アクティブタブに対する判定のため、numFieldAllowsZero()にpresetIdは渡さない（既定でアクティブタブを見る）
+      return Object.keys(row).some(k => {
+        if (k.startsWith('_autoFillSuppress_')) return false;
+        const v = row[k];
+        return numFieldAllowsZero(k) ? (v !== '' && v !== undefined) : !isZeroNum(v);
+      });
     }
 
     // 右側ツールバーの▼ボタン：何らかの入力がある一番下の行へジャンプする（無ければ1行目）
@@ -2652,14 +2749,29 @@ self.addEventListener('fetch', function(e) {
     // 確定した値は通常の選択処理に加え、一時選択肢としてもパネルアクションゾーンに積み上がる。
     // selectPanelOption内でcloseAllPanels()が呼ばれてPanel.activeTypeがnullに戻るため、
     // 先に対象列キーを変数へ保持しておく。
+    // アクションパネルの自由入力欄からの確定（OKボタン／Enterキー）。対象列はPanel.activeTypeを使う。
+    // v1.27〜: 以前はselectPanelOption()を呼んでいたため、確定した瞬間にパネル全体が閉じてしまい、
+    // すぐ下で一時選択肢として追加したはずのチップが、閉じた（非表示になった）パネルの中に描画される
+    // だけになり、ユーザーからは「一時的に増えるはずの選択肢が増えていない（見えない）」ように
+    // 見えていた。確定した値をセルへ反映する処理（commitPanelValue）だけを呼び、パネルは閉じずに
+    // そのままにすることで、一時選択肢が追加される様子をその場で確認できるようにした。
+    // 続けて別の値を自由入力しやすいよう、確定後は入力欄を空にしてフォーカスを戻す。
+    // パネルを閉じたい場合は、これまでどおり背景タップ・Escキー・別の選択肢のタップ等で閉じられる。
     function confirmFreeInputFromActionsZone() {
       if (Panel.activeType === null) return;
       const colKey = Panel.activeType;
-      const val = document.getElementById('panelActionsFreeText').value.trim();
+      const input = document.getElementById('panelActionsFreeText');
+      const val = input.value.trim();
       if (!val) return;
-      selectPanelOption(colKey, val);
+      if (!commitPanelValue(colKey, val)) return;
       addTempOption(App.activeTabId, colKey, val);
       renderTempOptions(colKey);
+      // 自由入力で確定した値はプリセットの選択肢とは別物のため、通常の選択肢一覧側に残っている
+      // 古い選択ハイライト（.selected）は一旦すべて外しておく（開いたまま値だけ変わったため）
+      const panel = document.getElementById(PANEL_ID_OF(colKey));
+      if (panel) panel.querySelectorAll('.panel-option.selected').forEach(el => el.classList.remove('selected'));
+      input.value = '';
+      input.focus();
     }
 
     /* ── 自由入力で確定した値の一時選択肢化 ──
@@ -2729,9 +2841,13 @@ self.addEventListener('fetch', function(e) {
       Panel.activeType = null; Panel.activeRow = null;
     }
 
-    function selectPanelOption(type, value, freqValue) {
-      if (Panel.activeRow === null) return;
+    // セルへ値を確定する共通処理（selectPanelOption・自由入力確定の両方から呼ばれる）。
+    // パネルを閉じる/開いたままにするかは呼び出し元に委ねる（selectPanelOptionは閉じる。
+    // 自由入力の確定は、一時選択肢が追加される様子をその場で見せるため閉じずに使う。v1.27）。
+    function commitPanelValue(type, value, freqValue) {
+      if (Panel.activeRow === null) return false;
       const rowData = getData()[Panel.activeRow];
+      const prevValue = rowData[type];
       rowData[type] = value;
       // 外部タブの「破損」選択時など、特定の値が選ばれた瞬間だけ働く単発の初期値ルールを適用する
       applyOneShotFillRule(rowData, type, value);
@@ -2740,9 +2856,17 @@ self.addEventListener('fetch', function(e) {
       // この列がautoFillの対象列であれば、パネルから選び直したことを伝え、クリア抑制状態を解除する
       const rule = getActiveAutoFillRule();
       const autoFillOptions = (rule && rule.target === type) ? { userSelected: true } : undefined;
-      saveData(Panel.activeRow, autoFillOptions); refreshActiveRow(); closeAllPanels();
+      // アンドゥ履歴には、ユーザーが直接選んだこの列（type）だけを記録する。applyOneShotFillRuleが
+      // 副次的に変化させた別列（jokyo等）はここに含めないため、「1つ戻す」で一緒に巻き戻らない。
+      saveData(Panel.activeRow, [{ field: type, prevValue }], autoFillOptions); refreshActiveRow();
       // 選択した列の次の列が画面内に収まるようスクロールする（DOM再構築後に実行）
       requestAnimationFrame(() => scrollToNextColumn(type));
+      return true;
+    }
+
+    function selectPanelOption(type, value, freqValue) {
+      if (!commitPanelValue(type, value, freqValue)) return;
+      closeAllPanels();
     }
 
     // 指定列の「次の列」が scrollWrapper の右端より外にはみ出している場合、
@@ -2775,11 +2899,12 @@ self.addEventListener('fetch', function(e) {
       if (Panel.activeRow === null) return;
       const d = getData()[Panel.activeRow];
       const def = emptyRowFor(getColumns());
+      const changes = fields.map(f => ({ field: f, prevValue: d[f] }));
       fields.forEach(f => { d[f] = def[f]; });
       // クリアした列にautoFillの対象列が含まれていれば、明示的なクリアとして自動再セットを抑制する
       const rule = getActiveAutoFillRule();
       const autoFillOptions = (rule && fields.includes(rule.target)) ? { explicitClear: true } : undefined;
-      saveData(Panel.activeRow, autoFillOptions); refreshActiveRow(); closeAllPanels();
+      saveData(Panel.activeRow, changes, autoFillOptions); refreshActiveRow(); closeAllPanels();
     }
 
     // 指定行のHTMLを再生成して返す（既存のDOM要素への .innerHTML 代入用）。
@@ -2840,10 +2965,11 @@ self.addEventListener('fetch', function(e) {
       const prev = getData()[rowIndex - 1][field];
       if (!prev || prev === 0) return;
       const rowData = getData()[rowIndex];
+      const prevValue = rowData[field];
       rowData[field] = prev;
       // 外部タブの「破損」コピー時など、特定の値が入った瞬間だけ働く単発の初期値ルールを適用する
       applyOneShotFillRule(rowData, field, prev);
-      saveData(rowIndex); refreshActiveRow();
+      saveData(rowIndex, [{ field, prevValue }]); refreshActiveRow();
       showToast(prev + ' copied');
       // 選択肢パネル確定時と同様、コピーした列の次の列が見える位置まで自動スクロールする
       // （DOM再構築後に実行するため1フレーム待つ）
@@ -2890,8 +3016,9 @@ self.addEventListener('fetch', function(e) {
     // 行データのある数値系フィールドを更新し、保存・該当DOM要素のテキスト更新・行再描画までを行う共通処理。
     // displayElId: 値を反映するDOM要素のid。displayText: 表示用テキスト（省略時はvalueそのまま）
     function commitFieldUpdate(rowIndex, field, value, displayElId, displayText) {
+      const prevValue = getData()[rowIndex][field];
       getData()[rowIndex][field] = value;
-      saveData(rowIndex);
+      saveData(rowIndex, [{ field, prevValue }]);
       const el = document.getElementById(displayElId);
       if (el) el.textContent = displayText !== undefined ? displayText : value;
       refreshActiveRow();
@@ -2903,7 +3030,7 @@ self.addEventListener('fetch', function(e) {
         const value = Numpad.value.endsWith('.') ? Numpad.value.slice(0, -1) : Numpad.value;
         commitFieldUpdate(
           Numpad.targetRow, Numpad.targetField, value,
-          numDispId(Numpad.targetField, Numpad.targetRow), numDisp(value)
+          numDispId(Numpad.targetField, Numpad.targetRow), numDisp(value, numFieldAllowsZero(Numpad.targetField))
         );
       }
       closeNumpad();
@@ -2921,7 +3048,7 @@ self.addEventListener('fetch', function(e) {
     // 61.099999999999994のような極小の誤差が蓄積して表示されてしまう不具合）を防ぐため。
     function stepNumField(rowIndex, field, delta) {
       const next = roundFloat(Math.max(0, Math.min(9999, (parseFloat(getData()[rowIndex][field]) || 0) + delta)));
-      commitFieldUpdate(rowIndex, field, next, numDispId(field, rowIndex), numDisp(next));
+      commitFieldUpdate(rowIndex, field, next, numDispId(field, rowIndex), numDisp(next, numFieldAllowsZero(field)));
     }
 
     function updateCounter(rowIndex, field, delta) {
@@ -2934,7 +3061,11 @@ self.addEventListener('fetch', function(e) {
     // 再レンダリング（refreshActiveRow）はonchange（フォーカスが外れた時）に行う。
     // oninputのたびにrefreshActiveRowを呼ぶと、1文字入力するたびにinput要素が
     // 再生成されてフォーカスが飛び、連続入力できなくなるため、この2段階構成にしている。
-    function saveText(rowIndex, field, value) { getData()[rowIndex][field] = value; saveData(rowIndex); }
+    function saveText(rowIndex, field, value) {
+      const prevValue = getData()[rowIndex][field];
+      getData()[rowIndex][field] = value;
+      saveData(rowIndex, [{ field, prevValue }]);
+    }
 
 
     /* ── ファイルダウンロード共通処理（Excel出力・バックアップ書き出しで共通利用） ── */
@@ -2978,7 +3109,7 @@ self.addEventListener('fetch', function(e) {
     function buildExportSpec(columns) {
       const headers = ['No.'];
       const widths  = [5];
-      // [{ field, isNum, hasNumSuffix, asText }] … 各出力列がどのデータキーを参照するか
+      // [{ field, isNum, hasNumSuffix, asText, allowZero }] … 各出力列がどのデータキーを参照するか
       const fieldPlan = [];
 
       // 1つの出力列をheaders/widths/fieldPlanにまとめて追加する。
@@ -2989,10 +3120,11 @@ self.addEventListener('fetch', function(e) {
       // なお、SheetJSは既定（ignoreEC未指定＝true相当）で「数値に見える文字列」セルに対する
       // Excelの警告（左上の緑三角・「数値が文字列として保存されています」等）を自動的に抑止する
       // マークを付けてくれるため、asTextにしたセルでも警告は表示されない。
-      const addExportColumn = (header, width, field, isNum, hasNumSuffix = false, asText = false) => {
+      // allowZero: trueの場合、0/'0'を「未入力」ではなく実際の値として出力する（傾斜タブのmm欄のみ。v1.27）。
+      const addExportColumn = (header, width, field, isNum, hasNumSuffix = false, asText = false, allowZero = false) => {
         headers.push(header);
         widths.push(width);
-        fieldPlan.push({ field, isNum, hasNumSuffix, asText });
+        fieldPlan.push({ field, isNum, hasNumSuffix, asText, allowZero });
       };
 
       // データを持たない、見た目だけの区切り用の空白列を追加する（field: nullなのでtabRows側では常に空文字になる）。
@@ -3007,7 +3139,7 @@ self.addEventListener('fetch', function(e) {
       columns.forEach(col => {
         if (col.type === 'select_with_nums') {
           addExportColumn(col.key, 12, col.key, false);
-          col.nums.forEach(n => addExportColumn(n.exportLabel || n.key, 6, n.key, true, false, true));
+          col.nums.forEach(n => addExportColumn(n.exportLabel || n.key, 6, n.key, true, false, true, !!n.allowZero));
           // 標準（内部①②・外部タブ）はnumsが2件（length/width）。それに満たない分（建具・傾斜タブの
           // mm1件のみ）は、widthに相当する位置に空白列を補って列数を揃える。
           for (let i = col.nums.length; i < 2; i++) addBlankColumn();
@@ -3024,6 +3156,7 @@ self.addEventListener('fetch', function(e) {
       });
       return { headers, widths, fieldPlan };
     }
+
 
     // 名称列のような hasNumSuffix 列の値（例:「外部1」）を、Excel出力時に
     // 文字部分と数字部分の間に半角スペースを入れた形（例:「外部 1」）に変換する。
@@ -3085,17 +3218,17 @@ self.addEventListener('fetch', function(e) {
 
         let lastIdx = -1;
         rows.forEach((d, i) => {
-          const hasValue = fieldPlan.some(({ field, isNum }) =>
-            isNum ? (d[field] !== 0 && !isZeroNum(d[field])) : !!d[field]);
+          const hasValue = fieldPlan.some(({ field, isNum, allowZero }) =>
+            isNum ? !(allowZero ? isEmptyNum(d[field]) : isZeroNum(d[field])) : !!d[field]);
           if (hasValue) lastIdx = i;
         });
         if (lastIdx === -1) return [];
 
         return rows.slice(0, lastIdx + 1).map((d, i) => [
           i + 1,
-          ...fieldPlan.map(({ field, isNum, hasNumSuffix, asText }) => {
+          ...fieldPlan.map(({ field, isNum, hasNumSuffix, asText, allowZero }) => {
             if (isNum) {
-              if (isZeroNum(d[field])) return '';
+              if (allowZero ? isEmptyNum(d[field]) : isZeroNum(d[field])) return '';
               // asText: L/W・mm等、小数を扱いうる数値項目は文字列として書き出す（入力した通りの
               // 見た目でそのまま表示させるため）。箇所（カウンター）は引き続き数値のまま出力する。
               return asText ? String(d[field]) : Number(d[field]);
@@ -3173,6 +3306,11 @@ self.addEventListener('fetch', function(e) {
     function afterTabsReplaced() {
       App.tabDataCache = {};
       App.tabPositions = {}; // 復元によりタブ構成自体が変わるため、記憶していた表示位置もクリアする
+      // バックアップ復元／インポートはタブのデータそのものを丸ごと書き換える操作であり、
+      // セルへの入力ではないため「1つ戻す」の対象外とする（v1.26）。以前はここでクリアしておらず、
+      // 復元前のセル編集履歴が残ったままになっていたため、復元直後に「1つ戻す」を押すと
+      // 復元前の値へ戻ってしまう不具合があった。
+      clearAllUndoHistory();
       App.activeTabId = App.tabs.length > 0 ? App.tabs[0].id : null;
       renderTabBar();
       updateEmptyStateVisibility();
@@ -3269,12 +3407,10 @@ self.addEventListener('fetch', function(e) {
         delete App.tabDataCache[t.id];
       });
       clearAllTempOptions();
-      App.undoStack = {}; // アンドゥ履歴も全クリア（全削除後に「戻す」で復活しないよう）
-      App.redoStack = {}; // やり直し履歴も同様に全クリア
+      clearAllUndoHistory(); // アンドゥ・やり直し履歴も全クリア（全削除後に「戻す」で復活しないよう。v1.26でclearAllUndoHistory()に統一）
       App.tabs.forEach(t => loadTabData(t.id));
       updateAllTabBadges();
       if (App.activeTabId) { buildLayoutForActiveTab(); renderAllRows(); }
-      updateUndoRedoBtns();
       App.hasUnsavedChanges = false;
       showToast('バックアップを保存し、全データを削除しました');
     }
@@ -3334,6 +3470,7 @@ self.addEventListener('fetch', function(e) {
       });
       App.tabs.forEach(t => loadTabData(t.id));
       App.possibleLostTabs = [];
+      clearAllUndoHistory(); // バックアップからの復元もセル入力ではないため、念のため破棄する（v1.26）
       updateAllTabBadges();
       if (App.activeTabId) { buildLayoutForActiveTab(); renderAllRows(); }
       document.getElementById('restorePromptOverlay').classList.remove('show');
@@ -3414,7 +3551,10 @@ self.addEventListener('fetch', function(e) {
       const empty = App.tabs.length === 0;
       document.getElementById('tableEmptyState').style.display = empty ? 'flex' : 'none';
       document.getElementById('tableHeaderWrapper').style.display = empty ? 'none' : '';
-      document.getElementById('tableScrollWrapper').style.display = empty ? 'none' : '';
+      // v1.31〜: #tableScrollWrapperはdisplay:noneにしない（常にレイアウト上に残す）。
+      // Jスタンプ切り替えボタン（.app-switch-drum-btn）がこの要素の子として配置されているため、
+      // ここをdisplay:noneにするとタブが無い状態でボタンごと非表示になってしまう。空の状態の
+      // ドラム表示自体は、上に重なる.table-empty-stateオーバーレイ（z-index:25）で隠される。
     }
 
     /* ── タブ管理モーダルの開閉 ── */
@@ -3539,6 +3679,7 @@ self.addEventListener('fetch', function(e) {
       App.deletedTabs = App.deletedTabs.filter(t => t.id !== id);
       delete App.tabPositions[id]; // 念のため（通常はdeleteActiveTabInstance側で既に消えている）
       persistDeletedTabs();
+      clearAllUndoHistory(); // これもタブ管理操作の一種のため、念のためアンドゥ履歴を破棄する（v1.26）
       renderTabManagerLists();
       showToast(`「${inst.label}」を完全に削除しました`);
     }
@@ -3558,6 +3699,11 @@ self.addEventListener('fetch', function(e) {
 
     // タブ追加・削除・復元・改名のたびに行う共通の再描画処理。
     function finishTabListChange(toastMsg) {
+      // タブの追加・削除・復元・改名はいずれも「タブ管理」の操作であり、セルへの入力ではないため、
+      // 「1つ戻す」の対象外とする（v1.26）。これらの操作の前後でアンドゥ履歴が残っていると、
+      // 操作後に「1つ戻す」を押した時、その操作より前のセルの値へ巻き戻ってしまい紛らわしいため、
+      // 全タブ分まとめて破棄する。
+      clearAllUndoHistory();
       // タブが1つも無い状態から追加・復元された場合、自動的にそのタブをアクティブにする
       if (!App.activeTabId && App.tabs.length > 0) App.activeTabId = App.tabs[0].id;
       renderTabManagerLists();
@@ -3675,6 +3821,9 @@ self.addEventListener('fetch', function(e) {
             App.tabs = orderedIds.map(id => App.tabs.find(t => t.id === id)).filter(Boolean);
             persistTabs();
             renderTabBar();
+            // タブの並び替えもタブ管理操作の一種のため、finishTabListChangeを経由しないこの経路でも
+            // アンドゥ履歴を破棄する（v1.26）。
+            clearAllUndoHistory();
           };
           document.addEventListener('pointermove', onMove, { passive: false });
           document.addEventListener('pointerup', onUp);
@@ -3771,6 +3920,23 @@ self.addEventListener('fetch', function(e) {
 
       loadTabsState(); // タブ一覧・アーカイブの読み込み（旧バージョンからの移行もここで行われる）
       App.activeTabId = App.tabs.length > 0 ? App.tabs[0].id : null;
+
+      // Jスタンプへの切り替えボタン（saveLastPositionForAppSwitch）で離れる直前に記憶しておいた
+      // タブ・行・横スクロール位置があれば、一度だけ読み取って復元する（消費後は削除し、通常の
+      // リロード等では毎回この分岐に入らないようにする）。保存されていたタブが削除等で
+      // 既に存在しない場合は無視して通常どおり先頭タブから始める。
+      try {
+        const raw = localStorage.getItem(APP_SWITCH_POSITION_KEY);
+        if (raw) {
+          localStorage.removeItem(APP_SWITCH_POSITION_KEY);
+          const saved = JSON.parse(raw);
+          if (saved && saved.tabId && App.tabs.some(t => t.id === saved.tabId)) {
+            App.activeTabId = saved.tabId;
+            App.tabPositions[saved.tabId] = { row: saved.row || 0, scrollLeft: saved.scrollLeft || 0 };
+          }
+        }
+      } catch (e) { /* 壊れていれば無視して通常起動する */ }
+
       renderTabBar();
       updateEmptyStateVisibility();
 
@@ -3778,10 +3944,16 @@ self.addEventListener('fetch', function(e) {
         App.tabs.forEach(t => loadTabData(t.id));
         notifyStartupRecoveryStatus();
         updateAllTabBadges();
+        // 保存されている最終表示位置を復元する（記録が無ければ従来どおり1行目・左端から）。
+        // Drum.currentRowはrenderAllRows()がどの行を「アクティブ行」として描画するかを左右するため、
+        // renderAllRows()より前に必ずセットしておく。
+        const pos = getSavedTabPosition(App.activeTabId);
+        setDrumRow(pos.row);
         buildLayoutForActiveTab();
         calculateDimensions();
         updateColumnWidths(); // buildLayoutForActiveTab時点ではDrum.rowHeightが未確定のため、ここで正しい値で再計算する
         renderAllRows();
+        setHorizontalScroll(pos.scrollLeft);
         Drum.targetRow = Drum.currentRow;
         updateRowInfo();
         lastRenderedTabId = App.activeTabId;
