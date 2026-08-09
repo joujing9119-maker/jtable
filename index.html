@@ -2150,6 +2150,11 @@ self.addEventListener('fetch', function(e) {
       const row = document.querySelector('#drumContainer .table-row');
       const rect = row ? row.getBoundingClientRect() : null;
       const dv = document.getElementById('drumViewport');
+      const tsw = document.getElementById('tableScrollWrapper');
+      const tarea = document.querySelector('.table-area');
+      const lcol = document.querySelector('.left-column');
+      const acont = document.querySelector('.app-container');
+      const thw = document.getElementById('tableHeaderWrapper');
       const sample = {
         t_ms: Math.round(performance.now()),
         tag,
@@ -2159,9 +2164,26 @@ self.addEventListener('fetch', function(e) {
         Drum_viewportHeight: Drum.viewportHeight,
         drumViewport_clientHeight: dv ? dv.clientHeight : null,
         drumViewport_clientWidth: dv ? dv.clientWidth : null,
+        drumViewport_offsetHeight: dv ? dv.offsetHeight : null,
         row_rectHeight: rect ? +rect.height.toFixed(3) : null,
         row_rectTop: rect ? +rect.top.toFixed(3) : null,
         gridMinWidth: getComputedStyle(document.documentElement).getPropertyValue('--grid-min-width').trim(),
+        // ── ここから追加計測（v1.34診断パス）: 祖先チェーン全体の高さと、実際にCSSへ
+        // 適用されているoverflow-x値、横スクロールバーが実際に必要になっているか（scrollWidth
+        // とclientWidthの比較）を全部記録し、どの階層で高さが失われているかを特定する ──
+        tsw_clientHeight: tsw ? tsw.clientHeight : null,
+        tsw_offsetHeight: tsw ? tsw.offsetHeight : null,
+        tsw_clientWidth: tsw ? tsw.clientWidth : null,
+        tsw_scrollWidth: tsw ? tsw.scrollWidth : null,
+        tsw_computedOverflowX: tsw ? getComputedStyle(tsw).overflowX : null,
+        tsw_needsHScroll: tsw ? (tsw.scrollWidth > tsw.clientWidth) : null,
+        thw_clientHeight: thw ? thw.clientHeight : null,
+        tableArea_clientHeight: tarea ? tarea.clientHeight : null,
+        leftColumn_clientHeight: lcol ? lcol.clientHeight : null,
+        appContainer_clientHeight: acont ? acont.clientHeight : null,
+        window_innerHeight: window.innerHeight,
+        window_innerWidth: window.innerWidth,
+        devicePixelRatio: window.devicePixelRatio,
         ...extra,
       };
       window.__debugLog.push(sample);
@@ -2174,12 +2196,14 @@ self.addEventListener('fetch', function(e) {
         `[${sample.tag}] t=${sample.t_ms}\n` +
         `visibleRows=${sample.visibleRows}\n` +
         `Drum.rowHeight=${sample.Drum_rowHeight}\n` +
-        `Drum.centerOffset=${sample.Drum_centerOffset}\n` +
-        `Drum.viewportHeight(cache)=${sample.Drum_viewportHeight}\n` +
-        `drumViewport.clientHeight(live)=${sample.drumViewport_clientHeight}\n` +
-        `drumViewport.clientWidth(live)=${sample.drumViewport_clientWidth}\n` +
-        `row.getBoundingClientRect().height=${sample.row_rectHeight}\n` +
-        `row.getBoundingClientRect().top=${sample.row_rectTop}\n` +
+        `drumViewport.clientHeight=${sample.drumViewport_clientHeight}\n` +
+        `tsw.clientHeight=${sample.tsw_clientHeight} / offsetHeight=${sample.tsw_offsetHeight}\n` +
+        `tsw.computedOverflowX=${sample.tsw_computedOverflowX} needsHScroll=${sample.tsw_needsHScroll}\n` +
+        `tableHeaderWrapper.clientHeight=${sample.thw_clientHeight}\n` +
+        `tableArea.clientHeight=${sample.tableArea_clientHeight}\n` +
+        `leftColumn.clientHeight=${sample.leftColumn_clientHeight}\n` +
+        `appContainer.clientHeight=${sample.appContainer_clientHeight}\n` +
+        `window.innerHeight=${sample.window_innerHeight} dpr=${sample.devicePixelRatio}\n` +
         `--grid-min-width=${sample.gridMinWidth}\n` +
         `サンプル数=${window.__debugLog.length}`;
     }
