@@ -423,6 +423,19 @@
     .table-scroll-wrapper {
       position: relative; /* .app-switch-drum-btn（右上固定）の位置決めの基準にするため */
       flex: 1; overflow-x: scroll; overflow-y: hidden;
+      /* overflow-x は auto ではなく scroll に固定している。表示行数（5/7/9）切り替え
+         アニメーション中は文字サイズ・列幅（--grid-min-width）が連続的に変化し、それに伴い
+         横スクロールバーが必要になったり不要になったりする。overflow-x:auto のままだと、
+         スクロールバーの出現・消滅そのものによって（ブラウザが確保する縦方向のスペースが
+         変わるため）#drumViewportの実測clientHeightがアニメーション中と完了後で異なってしまい、
+         アニメーション終了の瞬間に実測値へ縦方向にガクッとスナップする不具合の原因になっていた
+         （診断ログで実際にclientHeightが458px→449pxへアニメーション完了の瞬間に変化することを
+         確認済み、v1.33）。overflow-x:scrollで常にスクロールバー分のスペースを確保しておくことで、
+         コンテンツ幅が変化してもこの縦方向のスペースが変動しなくなり、アニメーション開始時に
+         測定した高さが完了時までずっと有効なままになる。
+         スクロールバー自体は`::-webkit-scrollbar { height: 4px }`で細く目立たないよう
+         スタイルしてあるため、横スクロールが不要な場面でも常時表示されることの見た目の影響は
+         小さい。 */
       -webkit-overflow-scrolling: touch;
       touch-action: pan-x;
       overscroll-behavior: contain;
@@ -805,7 +818,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.32</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.34</div>
           <!-- タブボタンはApp.tabsの内容からrenderTabBar()がJSで動的に生成する（固定タブは廃止） -->
           <div class="tab-bar" id="tabBar"></div>
           <!-- 「タブ管理」ボタン：追加・削除・並び替え・改名を行う専用モーダルを開く。
@@ -932,31 +945,6 @@
 
   <div class="toast" id="toast"></div>
 
-  <!-- ══════════ 診断用パネル（このデバッグビルドのみ） ══════════ -->
-  <div id="__debugPanel" style="position:fixed; left:8px; bottom:8px; z-index:9999; max-width:340px;
-    background:rgba(0,0,0,0.85); color:#0f0; font-family:monospace; font-size:11px; line-height:1.5;
-    padding:10px; border-radius:8px; white-space:pre-wrap; pointer-events:none;">診断パネル: 表示行数切り替えボタン（5/7/9）を押してください</div>
-  <div style="position:fixed; left:8px; bottom:200px; z-index:9999; display:flex; gap:6px;">
-    <button onclick="__debugCopyLog()" style="padding:8px 12px; font-size:13px; border-radius:8px; border:none; background:#0077b6; color:#fff;">ログを表示</button>
-    <button onclick="__debugClearLog()" style="padding:8px 12px; font-size:13px; border-radius:8px; border:none; background:#6c757d; color:#fff;">クリア</button>
-  </div>
-  <!-- ログ表示用オーバーレイ（file://ではクリップボードAPIが使えないブラウザが多いため、
-       常にこのテキストエリアに全文を表示し、手動で選択・コピーしてもらう方式にしている） -->
-  <div id="__debugLogOverlay" style="display:none; position:fixed; inset:0; z-index:10000;
-    background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
-    <div style="background:#1a1a2e; border-radius:12px; padding:16px; width:min(90vw,700px); max-height:80vh; display:flex; flex-direction:column; gap:10px;">
-      <div style="color:#fff; font-size:14px; font-weight:700;">診断ログ（全選択してコピーしてください）</div>
-      <textarea id="__debugLogText" readonly style="width:100%; height:50vh; font-family:monospace; font-size:11px;
-        background:#0d0d1a; color:#0f0; border:1px solid #444; border-radius:8px; padding:8px; box-sizing:border-box;
-        -webkit-user-select:text; user-select:text;"></textarea>
-      <div style="display:flex; gap:8px; justify-content:flex-end;">
-        <button onclick="__debugSelectAll()" style="padding:8px 12px; font-size:13px; border-radius:8px; border:none; background:#00b4d8; color:#fff;">全選択</button>
-        <button onclick="document.getElementById('__debugLogOverlay').style.display='none'" style="padding:8px 12px; font-size:13px; border-radius:8px; border:none; background:#6c757d; color:#fff;">閉じる</button>
-      </div>
-    </div>
-  </div>
-  <!-- ══════════ 診断用パネルここまで ══════════ -->
-
   <input type="file" id="backupFileInput" accept="application/json,.json" style="display:none" onchange="importBackupFile(event)">
 
   <!-- 起動時、保存されているはずのデータが見つからずバックアップだけ残っている場合に表示する復元確認ダイアログ -->
@@ -1024,7 +1012,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v1.32";
+      const CACHE_NAME = "jtable-v1.34";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -2079,10 +2067,36 @@ self.addEventListener('fetch', function(e) {
         : '<span class="side-btn-icon">☀</span><span class="side-btn-label">昼</span>';
     }
 
-    /* ── 寸法計算 ── */
+    /* ── 寸法計算 ──
+       重要な自己参照の関係: ヘッダー行の高さ（calcHeaderH()）はDrum.rowHeightに比例して決まるが、
+       ドラムの使える高さ（Drum.viewportHeight）は「.table-areaの合計高さ－ヘッダーの高さ」で
+       決まり、そのDrum.viewportHeightからDrum.rowHeightを逆算する……という具合に、rowHeightと
+       ヘッダー高さが互いに依存し合っている。
+       素朴に「今measureしたdrumViewport.clientHeightをそのままApp.visibleRowsで割る」だけだと、
+       その時点のヘッダー高さがまだ「古いrowHeight」を基準にしたままの場合、計算結果のrowHeightを
+       ヘッダーへ反映した瞬間にヘッダーの高さが変わり、ドラムの使える高さも変わってしまい、
+       measureした値と実際に確定する値がズレる（1ステップ分の遅延・不整合が生じる）。
+       表示行数切り替えアニメーションで「終了した瞬間にガクッと動く」不具合の真因はここにあった
+       （v1.34で診断ログにより特定。アニメーション中は毎フレームrowHeightが変化し続けるため、
+       この不整合が蓄積し続け、完了時の再計算で一気に補正されるように見えていた）。
+       この自己参照を、変化しない外側の実測値（.table-areaの合計高さ、ヘッダー・ドラムの内訳に
+       関わらず一定）を基準にした固定小数点反復で解決する。calcHeaderH()の式（線形）に対して
+       数回の反復で十分収束する。 */
+    // 指定した合計高さ（ヘッダー＋ドラムの合計）・行数から、自己無矛盾な1行あたりの高さを求める。
+    function solveRowHeightForArea(areaHeight, rows) {
+      let rowHeight = areaHeight / rows;
+      for (let i = 0; i < 8; i++) {
+        const headerH = Math.max(24, rowHeight * 0.36); // calcHeaderH()と同じ式（Drum未確定でも計算できるよう独立して持つ）
+        rowHeight = Math.max(0, (areaHeight - headerH) / rows);
+      }
+      return rowHeight;
+    }
+
     function calculateDimensions() {
-      Drum.viewportHeight = document.getElementById('drumViewport').clientHeight;
-      Drum.rowHeight = Drum.viewportHeight / App.visibleRows;
+      const tableArea = document.querySelector('.table-area');
+      const areaHeight = tableArea ? tableArea.clientHeight : document.getElementById('drumViewport').clientHeight;
+      Drum.rowHeight = solveRowHeightForArea(areaHeight, App.visibleRows);
+      Drum.viewportHeight = Math.max(0, areaHeight - calcHeaderH());
       Drum.centerOffset = Math.floor(App.visibleRows / 2);
       const hl = document.getElementById('centerHighlight');
       hl.style.top    = `${Drum.centerOffset * Drum.rowHeight}px`;
@@ -2100,7 +2114,6 @@ self.addEventListener('fetch', function(e) {
     let resizeRafId = null;
 
     function handleResize() {
-      if (window.__debugLog) console.log('[DEBUG] handleResize() called at', Math.round(performance.now()), 'animId set?', !!Drum.visibleRowsAnimationId);
       if (resizeRafId) cancelAnimationFrame(resizeRafId);
       resizeRafId = requestAnimationFrame(() => {
         resizeRafId = null;
@@ -2113,14 +2126,7 @@ self.addEventListener('fetch', function(e) {
         // ため、古い行数を基準にDrum.rowHeightを計算し直してしまい、アニメーションの値を
         // 一瞬引き戻してしまっていた。アニメーション中はこちらの処理をまるごとスキップし、
         // 再計算はアニメーション側（applyVisibleRowsFrame）に一任する。
-        if (Drum.visibleRowsAnimationId) {
-          if (window.__debugLog) console.log('[DEBUG] handleResize deferred callback SKIPPED (animation still running) at', Math.round(performance.now()));
-          return;
-        }
-        if (window.__debugLog) {
-          console.log('[DEBUG] handleResize deferred callback EXECUTING (recalculating) at', Math.round(performance.now()));
-          __debugSample('handleResize-executing');
-        }
+        if (Drum.visibleRowsAnimationId) return;
         calculateDimensions();
         updateColumnWidths();
         document.getElementById('drumContainer').querySelectorAll('.table-row').forEach(r => {
@@ -2130,7 +2136,6 @@ self.addEventListener('fetch', function(e) {
         });
         applyRowPositions(Drum.dragOffset);
         updateTabTapZones(); // 画面回転・リサイズでタブの位置・幅が変わるため、当たり判定も再計算する
-        if (window.__debugLog) __debugSample('handleResize-after-recalc');
       });
     }
 
@@ -2144,98 +2149,6 @@ self.addEventListener('fetch', function(e) {
 
     // 指定した行の高さ・中央行オフセットを実際にDOMへ反映する（アニメーションの1フレーム分の処理）。
     // アニメーション中は補間された連続値（非整数）を、完了時は確定した最終値を渡して呼ぶ。
-    /* ══════════ 診断用計測ロジック（このデバッグビルドのみ） ══════════ */
-    window.__debugLog = [];
-    function __debugSample(tag, extra) {
-      const row = document.querySelector('#drumContainer .table-row');
-      const rect = row ? row.getBoundingClientRect() : null;
-      const dv = document.getElementById('drumViewport');
-      const tsw = document.getElementById('tableScrollWrapper');
-      const tarea = document.querySelector('.table-area');
-      const lcol = document.querySelector('.left-column');
-      const acont = document.querySelector('.app-container');
-      const thw = document.getElementById('tableHeaderWrapper');
-      const sample = {
-        t_ms: Math.round(performance.now()),
-        tag,
-        visibleRows: App.visibleRows,
-        Drum_rowHeight: +Drum.rowHeight.toFixed(3),
-        Drum_centerOffset: +Drum.centerOffset.toFixed(4),
-        Drum_viewportHeight: Drum.viewportHeight,
-        drumViewport_clientHeight: dv ? dv.clientHeight : null,
-        drumViewport_clientWidth: dv ? dv.clientWidth : null,
-        drumViewport_offsetHeight: dv ? dv.offsetHeight : null,
-        row_rectHeight: rect ? +rect.height.toFixed(3) : null,
-        row_rectTop: rect ? +rect.top.toFixed(3) : null,
-        gridMinWidth: getComputedStyle(document.documentElement).getPropertyValue('--grid-min-width').trim(),
-        // ── ここから追加計測（v1.34診断パス）: 祖先チェーン全体の高さと、実際にCSSへ
-        // 適用されているoverflow-x値、横スクロールバーが実際に必要になっているか（scrollWidth
-        // とclientWidthの比較）を全部記録し、どの階層で高さが失われているかを特定する ──
-        tsw_clientHeight: tsw ? tsw.clientHeight : null,
-        tsw_offsetHeight: tsw ? tsw.offsetHeight : null,
-        tsw_clientWidth: tsw ? tsw.clientWidth : null,
-        tsw_scrollWidth: tsw ? tsw.scrollWidth : null,
-        tsw_computedOverflowX: tsw ? getComputedStyle(tsw).overflowX : null,
-        tsw_needsHScroll: tsw ? (tsw.scrollWidth > tsw.clientWidth) : null,
-        thw_clientHeight: thw ? thw.clientHeight : null,
-        tableArea_clientHeight: tarea ? tarea.clientHeight : null,
-        leftColumn_clientHeight: lcol ? lcol.clientHeight : null,
-        appContainer_clientHeight: acont ? acont.clientHeight : null,
-        window_innerHeight: window.innerHeight,
-        window_innerWidth: window.innerWidth,
-        devicePixelRatio: window.devicePixelRatio,
-        ...extra,
-      };
-      window.__debugLog.push(sample);
-      updateDebugPanel(sample);
-    }
-    function updateDebugPanel(sample) {
-      const panel = document.getElementById('__debugPanel');
-      if (!panel) return;
-      panel.textContent =
-        `[${sample.tag}] t=${sample.t_ms}\n` +
-        `visibleRows=${sample.visibleRows}\n` +
-        `Drum.rowHeight=${sample.Drum_rowHeight}\n` +
-        `drumViewport.clientHeight=${sample.drumViewport_clientHeight}\n` +
-        `tsw.clientHeight=${sample.tsw_clientHeight} / offsetHeight=${sample.tsw_offsetHeight}\n` +
-        `tsw.computedOverflowX=${sample.tsw_computedOverflowX} needsHScroll=${sample.tsw_needsHScroll}\n` +
-        `tableHeaderWrapper.clientHeight=${sample.thw_clientHeight}\n` +
-        `tableArea.clientHeight=${sample.tableArea_clientHeight}\n` +
-        `leftColumn.clientHeight=${sample.leftColumn_clientHeight}\n` +
-        `appContainer.clientHeight=${sample.appContainer_clientHeight}\n` +
-        `window.innerHeight=${sample.window_innerHeight} dpr=${sample.devicePixelRatio}\n` +
-        `--grid-min-width=${sample.gridMinWidth}\n` +
-        `サンプル数=${window.__debugLog.length}`;
-    }
-    function __debugCopyLog() {
-      const text = JSON.stringify(window.__debugLog, null, 2);
-      const ta = document.getElementById('__debugLogText');
-      ta.value = text || '(まだログがありません。表示行数切り替えボタンを押してから開いてください)';
-      document.getElementById('__debugLogOverlay').style.display = 'flex';
-      __debugSelectAll();
-      // クリップボードAPI・execCommandが使える環境ではダメ元で自動コピーも試みる
-      // （失敗しても上のテキストエリアから手動でコピーできるので実害はない）。
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).catch(() => {});
-        } else if (document.execCommand) {
-          document.execCommand('copy');
-        }
-      } catch (e) { /* 失敗しても手動コピーがあるので無視 */ }
-    }
-    function __debugSelectAll() {
-      const ta = document.getElementById('__debugLogText');
-      ta.focus();
-      ta.select();
-      ta.setSelectionRange(0, ta.value.length);
-    }
-    function __debugClearLog() {
-      window.__debugLog = [];
-      const panel = document.getElementById('__debugPanel');
-      if (panel) panel.textContent = 'ログをクリアしました。行数切り替えボタンを押してください。';
-    }
-    /* ══════════ 診断用計測ロジックここまで ══════════ */
-
     function applyVisibleRowsFrame(rowHeight, centerOffset) {
       Drum.rowHeight = rowHeight;
       Drum.centerOffset = centerOffset;
@@ -2254,8 +2167,6 @@ self.addEventListener('fetch', function(e) {
     function animateVisibleRowsChange(targetRows) {
       if (targetRows === App.visibleRows) return;
       if (Drum.visibleRowsAnimationId) cancelAnimationFrame(Drum.visibleRowsAnimationId);
-      __debugClearLog();
-      __debugSample('start-before-calculateDimensions');
 
       // 表示中のタブが無い（ドラム自体が非表示）場合は、アニメーションさせる対象が無いため
       // 値の更新だけ行う。次にタブが表示された時点でcalculateDimensions()が新しい行数を反映する。
@@ -2266,16 +2177,31 @@ self.addEventListener('fetch', function(e) {
         return;
       }
 
+      // アニメーションを開始する前に一度calculateDimensions()を呼んで実測し直す（v1.32）。
+      // これは「タブ切り替え時などから時間が経ってビューポート高さがズレている」ケースへの対策。
       calculateDimensions();
-      __debugSample('start-after-calculateDimensions');
 
       const fromRowHeight    = Drum.rowHeight;
       const fromCenterOffset = Drum.centerOffset;
-      const toRowHeight    = Drum.viewportHeight / targetRows;
+      // toRowHeightは、単純に「現在のDrum.viewportHeight ÷ targetRows」では求められない。
+      // Drum.viewportHeightは「現在のヘッダー高さ」を前提にした値だが、アニメーション完了時には
+      // ヘッダーの高さもtargetRowsに応じた新しいrowHeightに合わせて変化しているため、その
+      // 「変化した後」のヘッダー高さを前提にした自己無矛盾な値を求める必要がある
+      // （calculateDimensions()のコメント・v1.34参照）。.table-areaの合計高さは行数に依存せず
+      // 一定なので、これを基準にsolveRowHeightForArea()で解く。
+      const tableAreaEl = document.querySelector('.table-area');
+      const areaHeight  = tableAreaEl ? tableAreaEl.clientHeight : (Drum.viewportHeight + calcHeaderH());
+      const toRowHeight    = solveRowHeightForArea(areaHeight, targetRows);
       const toCenterOffset = Math.floor(targetRows / 2);
       const t0 = performance.now();
-      console.log('[DEBUG] animation start: from', fromRowHeight, 'to', toRowHeight, 'viewportHeight', Drum.viewportHeight, 'targetRows', targetRows);
 
+      // アニメーション中は列幅（文字サイズに連動）が変化し、テーブル全体の横幅
+      // （--grid-min-width）も一緒に変わる。もし横スクロールが右側にずれた状態のまま
+      // アニメーションを始めると、列幅が縮んでスクロール可能範囲が狭くなった瞬間に、
+      // ブラウザ側が横スクロール位置を強制的に補正（クランプ）することがあり、これが
+      // 「アニメーション終了直後にガクッと動く」ように見える原因になりうる。
+      // アニメーション開始時点で横スクロールを左端に戻し、常に有効な範囲内（0は必ず有効）に
+      // 収めておくことで、ブラウザ側の強制補正が起きる余地そのものを無くす。
       cancelAutoHScroll();
       setHorizontalScroll(0);
 
@@ -2287,27 +2213,28 @@ self.addEventListener('fetch', function(e) {
             fromRowHeight    + (toRowHeight    - fromRowHeight)    * ease,
             fromCenterOffset + (toCenterOffset - fromCenterOffset) * ease
           );
-          __debugSample('frame', { t: +t.toFixed(4), ease: +ease.toFixed(4) });
           Drum.visibleRowsAnimationId = requestAnimationFrame(step);
         } else {
-          __debugSample('completion-before-recalc');
+          // アニメーション開始時にキャッシュしたビューポート高さ（toRowHeightの元になった値）と、
+          // 実際のビューポート高さがズレていることがある（アニメーション中に列幅が変化することで
+          // 横スクロールバーが出現/消滅する等、副次的にビューポートの実高さが変わりうるため）。
+          // ズレたまま確定させると、直後に（アニメーション中は抑制していた）ResizeObserver由来の
+          // handleResize()が実測値で再計算し直し、その差分でガクッと動いて見える不具合があった。
+          // アニメーション完了のこの時点で改めてcalculateDimensions()を呼んで実測し直すことで、
+          // 以後handleResize()が呼ばれても再計算結果が完全に一致し、ズレが生じないようにする。
           App.visibleRows = targetRows;
           calculateDimensions();
-          __debugSample('completion-after-calculateDimensions');
           applyVisibleRowsFrame(Drum.rowHeight, Drum.centerOffset);
-          __debugSample('completion-after-applyVisibleRowsFrame');
-          setHorizontalScroll(0);
+          setHorizontalScroll(0); // 列幅変化に追従して、最終的な左端位置を改めて確定させる
           localStorage.setItem(VISIBLE_ROWS_KEY, String(targetRows));
           updateVisibleRowsButton();
           Drum.visibleRowsAnimationId = null;
+          // アニメーション中（列幅の変化に伴う#drumViewportの横幅変化）にResizeObserverが発火し、
+          // その1フレーム遅延のコールバック（handleResize内のresizeRafId）がまだ実行されずに
+          // 残っている場合、上のDrum.visibleRowsAnimationId=nullの直後にすり抜けて実行され、
+          // アニメーション中の不安定な寸法で再計算し直してしまうことがあった（v1.32で特定）。
+          // ここで明示的にキャンセルし、この競合の発生余地そのものを無くす。
           if (resizeRafId) { cancelAnimationFrame(resizeRafId); resizeRafId = null; }
-          __debugSample('completion-final');
-          console.log('[DEBUG] animation complete. Full log:', window.__debugLog);
-          console.table(window.__debugLog);
-          // 完了から500ms後・1000ms後にも1サンプル取り、handleResize等が遅れて発火して
-          // 値が変化していないかを確認する（レースコンディションの検出用）。
-          setTimeout(() => __debugSample('post-complete+500ms'), 500);
-          setTimeout(() => __debugSample('post-complete+1000ms'), 1000);
         }
       }
       Drum.visibleRowsAnimationId = requestAnimationFrame(step);
