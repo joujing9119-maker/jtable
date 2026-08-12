@@ -818,7 +818,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.34</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.35</div>
           <!-- タブボタンはApp.tabsの内容からrenderTabBar()がJSで動的に生成する（固定タブは廃止） -->
           <div class="tab-bar" id="tabBar"></div>
           <!-- 「タブ管理」ボタン：追加・削除・並び替え・改名を行う専用モーダルを開く。
@@ -1012,7 +1012,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v1.34";
+      const CACHE_NAME = "jtable-v1.35";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1634,6 +1634,12 @@ self.addEventListener('fetch', function(e) {
       // Math.floor(App.visibleRows / 2)の整数値だが、表示行数切り替えアニメーション中だけ
       // 連続値（非整数）を取る（animateVisibleRowsChange参照）。
       centerOffset: 2,
+      // 中央行（アクティブ行）の画面上のY座標（px）。通常時はcenterOffset×rowHeightと一致するが、
+      // 表示行数切り替えアニメーション中は、この値だけを独立して直接補間する（centerOffsetと
+      // rowHeightをそれぞれ別々に補間してから掛け算すると、両者の積が単調に変化するとは限らず、
+      // 中央のハイライト位置が一瞬沈んでから戻る/浮いてから戻るような不自然な動きになっていた。
+      // v1.35で対応。詳細はanimateVisibleRowsChange内のコメント参照）。
+      centerPx: 0,
       isDragging: false,
       dragOffset: 0,
       startY: 0, lastY: 0, lastScrollX: 0, lastTime: 0, velocity: 0,
@@ -2098,8 +2104,9 @@ self.addEventListener('fetch', function(e) {
       Drum.rowHeight = solveRowHeightForArea(areaHeight, App.visibleRows);
       Drum.viewportHeight = Math.max(0, areaHeight - calcHeaderH());
       Drum.centerOffset = Math.floor(App.visibleRows / 2);
+      Drum.centerPx = Drum.centerOffset * Drum.rowHeight;
       const hl = document.getElementById('centerHighlight');
-      hl.style.top    = `${Drum.centerOffset * Drum.rowHeight}px`;
+      hl.style.top    = `${Drum.centerPx}px`;
       hl.style.height = `${Drum.rowHeight}px`;
     }
 
@@ -2147,13 +2154,16 @@ self.addEventListener('fetch', function(e) {
        再計算することで、間隔だけでなく見た目全体が滑らかに変化するようにしている
        （animateScrollLeft()と同じイージング・同じ設計方針）。 */
 
-    // 指定した行の高さ・中央行オフセットを実際にDOMへ反映する（アニメーションの1フレーム分の処理）。
-    // アニメーション中は補間された連続値（非整数）を、完了時は確定した最終値を渡して呼ぶ。
-    function applyVisibleRowsFrame(rowHeight, centerOffset) {
+    // 指定した行の高さ・中央行オフセット・中央行の画面Y座標を実際にDOMへ反映する
+    // （アニメーションの1フレーム分の処理）。アニメーション中は補間された連続値（非整数）を、
+    // 完了時は確定した最終値を渡して呼ぶ。centerPxを省略した場合はcenterOffset×rowHeightを使う
+    // （アニメーション以外の通常呼び出し向けのデフォルト）。
+    function applyVisibleRowsFrame(rowHeight, centerOffset, centerPx) {
       Drum.rowHeight = rowHeight;
       Drum.centerOffset = centerOffset;
+      Drum.centerPx = centerPx !== undefined ? centerPx : centerOffset * rowHeight;
       const hl = document.getElementById('centerHighlight');
-      hl.style.top    = `${centerOffset * rowHeight}px`;
+      hl.style.top    = `${Drum.centerPx}px`;
       hl.style.height = `${rowHeight}px`;
       updateColumnWidths();
       document.getElementById('drumContainer').querySelectorAll('.table-row').forEach(r => {
@@ -2193,6 +2203,14 @@ self.addEventListener('fetch', function(e) {
       const areaHeight  = tableAreaEl ? tableAreaEl.clientHeight : (Drum.viewportHeight + calcHeaderH());
       const toRowHeight    = solveRowHeightForArea(areaHeight, targetRows);
       const toCenterOffset = Math.floor(targetRows / 2);
+      // 中央行の画面Y座標（centerPx）は、centerOffsetとrowHeightをそれぞれ別々に補間してから
+      // 掛け算するのではなく、開始値・終了値の「積」そのものを別途1つの値として直接補間する。
+      // centerOffsetは小さくなる方向、rowHeightは大きくなる方向へ同時に変化する場合（例: 9→5）、
+      // 両者を別々にease-out cubicで補間すると、積（＝中央行の位置）はtに対して二次関数になり、
+      // 単調に変化するとは限らない（一瞬沈んでから戻る、またはその逆の動きになる）。積そのものを
+      // 直接線形補間（同じease関数で重み付け）すれば、常に単調に動くことが保証される（v1.35）。
+      const fromCenterPx = fromCenterOffset * fromRowHeight;
+      const toCenterPx   = toCenterOffset   * toRowHeight;
       const t0 = performance.now();
 
       // アニメーション中は列幅（文字サイズに連動）が変化し、テーブル全体の横幅
@@ -2211,7 +2229,8 @@ self.addEventListener('fetch', function(e) {
           const ease = 1 - Math.pow(1 - t, 3);
           applyVisibleRowsFrame(
             fromRowHeight    + (toRowHeight    - fromRowHeight)    * ease,
-            fromCenterOffset + (toCenterOffset - fromCenterOffset) * ease
+            fromCenterOffset + (toCenterOffset - fromCenterOffset) * ease,
+            fromCenterPx     + (toCenterPx     - fromCenterPx)     * ease
           );
           Drum.visibleRowsAnimationId = requestAnimationFrame(step);
         } else {
@@ -2224,7 +2243,7 @@ self.addEventListener('fetch', function(e) {
           // 以後handleResize()が呼ばれても再計算結果が完全に一致し、ズレが生じないようにする。
           App.visibleRows = targetRows;
           calculateDimensions();
-          applyVisibleRowsFrame(Drum.rowHeight, Drum.centerOffset);
+          applyVisibleRowsFrame(Drum.rowHeight, Drum.centerOffset, Drum.centerPx);
           setHorizontalScroll(0); // 列幅変化に追従して、最終的な左端位置を改めて確定させる
           localStorage.setItem(VISIBLE_ROWS_KEY, String(targetRows));
           updateVisibleRowsButton();
@@ -2434,7 +2453,13 @@ self.addEventListener('fetch', function(e) {
       document.getElementById('drumContainer').querySelectorAll('.table-row').forEach(row => {
         const idx  = parseInt(row.dataset.rowIndex);
         const rel  = (idx - Drum.currentRow) - (pixelOffset / Drum.rowHeight);
-        const top  = (rel + Drum.centerOffset) * Drum.rowHeight;
+        // 中央行の画面Y座標はDrum.centerPxを直接使う（Drum.centerOffset×Drum.rowHeightの
+        // 掛け算では代用しない）。表示行数切り替えアニメーション中は、centerOffsetとrowHeightを
+        // それぞれ別々にease-out cubicで補間しているため、両者の積は単調に変化するとは限らず、
+        // 中央のハイライト位置が一瞬沈んでから戻る（またはその逆）という不自然な動きになって
+        // いた。Drum.centerPxはその積ではなく、常に「中央行が実際に置かれるべきY座標」を直接
+        // 補間した値として別途管理している（v1.35）。
+        const top  = rel * Drum.rowHeight + Drum.centerPx;
         const dist = Math.abs(rel);
         row.style.transform = `translateY(${top}px)`;
         row.style.opacity   = Math.max(0.3, 1 - dist * 0.3);
