@@ -737,7 +737,7 @@
       <div class="header">
         <div class="header-top">
           <h1>調査表アプリ</h1>
-          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.36</div>
+          <div style="font-size:10px;color:var(--text-sub);font-weight:600;flex-shrink:0;white-space:nowrap;align-self:flex-end;padding-bottom:9px;margin-left:-4px;">v1.37</div>
           <!-- タブボタンはApp.tabsの内容からrenderTabBar()がJSで動的に生成する（固定タブは廃止） -->
           <div class="tab-bar" id="tabBar"></div>
           <!-- 「タブ管理」ボタン：追加・削除・並び替え・改名を行う専用モーダルを開く。
@@ -931,7 +931,7 @@
     // バージョンを上げて再配布したいときは、下のCACHE_NAMEの末尾（バージョン文字列）を変更すること。
     (function registerServiceWorker() {
       if (!("serviceWorker" in navigator)) return;
-      const CACHE_NAME = "jtable-v1.36";
+      const CACHE_NAME = "jtable-v1.37";
       const CACHE_URLS = [
         "./libs/xlsx.full.min.js",
       ];
@@ -1013,21 +1013,21 @@ self.addEventListener('fetch', function(e) {
     const TAB_OPTIONS = {
       gaibusonsho: {
         meisho: ['外部','車庫','倉庫','物置','ボイラー室','屋上'],
-        kakubu: ['外壁','基礎','土間','犬走','叩き','塀'],
-        shiage: ['リシン','モルタル','ボンタイル','GL','タイル','Co','CB','漆喰','AS','サイディング','木質板','ボード','換気口'],
-        sonsho: ['亀裂','網目亀裂','糸亀裂','破損','欠損','隙間','下がり','隆起','ちり切れ','目地切れ','白華'],
+        kakubu: ['外壁','基礎','土間','犬走','叩き','塀','擁壁','舗装','軒天','屋根','雨どい'],
+        shiage: ['リシン','モルタル','ボンタイル','GL','タイル','Co','CB','漆喰','AS','サイディング','木質板','ボード','換気口','塗装仕上げ','モルタル仕上げ','EP塗装仕上げ','ジョリパッド'],
+        sonsho: ['亀裂','網目亀裂','糸亀裂','破損','欠損','隙間','下がり','隆起','ちり切れ','目地切れ','白華','膨出亀裂'],
       },
       naibusonsho1: {
         meisho: ['玄関','ホール','廊下','和室','洋室','キッチン','LDK','トイレ','浴室','収納','洗面','サンルーム','階段'],
         kakubu: ['内壁','天井','床','窓枠'],
         shiage: ['京壁','クロス','モルタル','フローリング','縁甲板張り','CF','畳','杉杢','Co','タイル','木質板','ボード','漆喰'],
-        sonsho: ['亀裂','網目亀裂','糸切れ','ちり切れ','破損','隙間','下がり','染み','浮き','雨漏り跡'],
+        sonsho: ['亀裂','網目亀裂','糸切れ','ちり切れ','破損','隙間','下がり','染み','浮き','雨漏り跡','膨出亀裂'],
       },
       naibusonsho2: {
         meisho: ['店舗','風除室','玄関','トイレ','洗面','階段','ホール','事務所','倉庫'],
         kakubu: ['内壁','天井','床','窓枠'],
         shiage: ['京壁','クロス','モルタル','フローリング','縁甲板張り','CF','畳','杉杢','Co','タイル','木質板','ボード','漆喰'],
-        sonsho: ['亀裂','網目亀裂','糸切れ','ちり切れ','破損','隙間','下がり','染み','浮き','雨漏り跡'],
+        sonsho: ['亀裂','網目亀裂','糸切れ','ちり切れ','破損','隙間','下がり','染み','浮き','雨漏り跡','膨出亀裂'],
       },
       tategusonshoo1: {
         meisho: ['玄関','ホール','廊下','和室','洋室','キッチン','LDK','トイレ','浴室','収納','洗面','サンルーム','階段'],
@@ -2874,11 +2874,16 @@ self.addEventListener('fetch', function(e) {
       return m ? `${m[1]} ${m[2]}` : value;
     }
 
-    // 「サイディング」「フローリング」はExcel出力時のみ半角カタカナに変換する（画面表示・保存データは
+    // 下記の選択肢はExcel出力時のみ半角カタカナに変換する（画面表示・保存データは
     // 全角のまま）。完全一致した場合のみ変換する
     const EXPORT_HALFWIDTH_MAP = {
       'サイディング': 'ｻｲﾃﾞｨﾝｸﾞ',
       'フローリング': 'ﾌﾛｰﾘﾝｸﾞ',
+      'ボンタイル': 'ﾎﾞﾝﾀｲﾙ',
+      'モルタル仕上げ': 'ﾓﾙﾀﾙ仕上',
+      '塗装仕上げ': '塗装仕上',
+      'EP塗装仕上げ': 'EP塗装仕上',
+      'ジョリパッド': 'ｼﾞｮﾘﾊﾟｯﾄﾞ',
     };
     const toExportHalfWidth = value => EXPORT_HALFWIDTH_MAP[value] || value;
 
